@@ -81,6 +81,39 @@ export function useWebRTCCall() {
     const callIdRef = useRef<string | null>(null);
     const durationInterval = useRef<NodeJS.Timeout | null>(null);
 
+    const cleanup = useCallback(() => {
+        // Stop all tracks
+        if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach((track) => track.stop());
+            localStreamRef.current = null;
+        }
+
+        // Close peer connection
+        if (peerConnection.current) {
+            peerConnection.current.close();
+            peerConnection.current = null;
+        }
+
+        // Clear duration timer
+        if (durationInterval.current) {
+            clearInterval(durationInterval.current);
+            durationInterval.current = null;
+        }
+
+        callIdRef.current = null;
+
+        setState({
+            status: "idle",
+            callData: null,
+            localStream: null,
+            remoteStream: null,
+            isMuted: false,
+            isVideoOff: false,
+            callDuration: 0,
+            connectionState: "new",
+        });
+    }, []);
+
     // Listen for incoming calls
     useEffect(() => {
         if (!user) return;
@@ -102,6 +135,38 @@ export function useWebRTCCall() {
 
         return () => off(incomingCallsRef);
     }, [user, state.status]);
+
+    // Listen for call status changes (Remote Hangup)
+    useEffect(() => {
+        if (!user || !state.callData?.id) return;
+
+        const callId = state.callData.id;
+        // Determine the path to listen to based on who initiated
+        const isCaller = state.callData.callerId === user.uid;
+        const callPath = isCaller
+            ? `calls/${state.callData.receiverId}/incoming/${callId}`
+            : `calls/${user.uid}/incoming/${callId}`;
+
+        const callStatusRef = ref(rtdb, callPath);
+
+        const unsubscribe = onValue(callStatusRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                if (data.status === "ended" || data.status === "rejected") {
+                    console.log("Call ended by remote peer");
+                    cleanup();
+                } else if (data.status === "accepted" && state.status === "calling") {
+                    // Ensure we update local state to connected/accepted if we missed it
+                    // (Though initiateCall handles this via answer check, this is a backup)
+                }
+            } else {
+                // Call data removed? Treat as ended
+                cleanup();
+            }
+        });
+
+        return () => off(callStatusRef);
+    }, [user, state.callData?.id, state.status, cleanup]);
 
     const getMediaStream = useCallback(async (type: CallType, facingMode: 'user' | 'environment' = 'user') => {
         try {
@@ -455,38 +520,7 @@ export function useWebRTCCall() {
         }
     }, [state.localStream, isFrontCamera]);
 
-    const cleanup = useCallback(() => {
-        // Stop all tracks
-        if (localStreamRef.current) {
-            localStreamRef.current.getTracks().forEach((track) => track.stop());
-            localStreamRef.current = null;
-        }
 
-        // Close peer connection
-        if (peerConnection.current) {
-            peerConnection.current.close();
-            peerConnection.current = null;
-        }
-
-        // Clear duration timer
-        if (durationInterval.current) {
-            clearInterval(durationInterval.current);
-            durationInterval.current = null;
-        }
-
-        callIdRef.current = null;
-
-        setState({
-            status: "idle",
-            callData: null,
-            localStream: null,
-            remoteStream: null,
-            isMuted: false,
-            isVideoOff: false,
-            callDuration: 0,
-            connectionState: "new",
-        });
-    }, []);
 
     const toggleMute = useCallback(() => {
         if (localStreamRef.current) {
