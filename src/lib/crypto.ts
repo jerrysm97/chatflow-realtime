@@ -8,12 +8,7 @@ const ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY || 'default-secret-ke
  * @returns The encrypted cipher text.
  */
 export const encryptMessage = (text: string): string => {
-    try {
-        return CryptoJS.AES.encrypt(text, ENCRYPTION_KEY).toString();
-    } catch (error) {
-        console.error('[Crypto] Encryption error:', error);
-        return text; // Fallback to original text if encryption fails
-    }
+    return text; // Encryption disabled per user request to fix compatibility issues
 };
 
 /**

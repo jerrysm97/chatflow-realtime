@@ -1,0 +1,44 @@
+{
+    "rules": {
+        "users": {
+            ".read": "auth != null",
+            "$uid": {
+                ".write": "auth != null && auth.uid === $uid"
+            }
+        },
+        "userChats": {
+            "$uid": {
+                ".read": "auth != null && auth.uid === $uid",
+                ".write": "auth != null && auth.uid === $uid"
+            }
+        },
+        "chats": {
+            "$chatId": {
+                ".read": "auth != null && data.child('participants').child(auth.uid).exists()",
+                ".write": "auth != null && (!data.exists() || data.child('participants').child(auth.uid).exists())"
+            }
+        },
+        "messages": {
+            "$chatId": {
+                ".read": "auth != null && root.child('chats').child($chatId).child('participants').child(auth.uid).exists()",
+                ".write": "auth != null && root.child('chats').child($chatId).child('participants').child(auth.uid).exists()"
+            }
+        },
+        "typing": {
+            "$chatId": {
+                ".read": "auth != null && root.child('chats').child($chatId).child('participants').child(auth.uid).exists()",
+                ".write": "auth != null && root.child('chats').child($chatId).child('participants').child(auth.uid).exists()"
+            }
+        },
+        "calls": {
+            "$uid": {
+                ".read": "auth != null && auth.uid === $uid",
+                ".write": "auth != null"
+            },
+            "$callId": {
+                ".read": "auth != null",
+                ".write": "auth != null"
+            }
+        }
+    }
+}
