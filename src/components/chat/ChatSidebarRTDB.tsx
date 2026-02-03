@@ -26,7 +26,88 @@ import {
     Phone,
     Video,
     MoreVertical,
+    Check,
+    CheckCheck
 } from "lucide-react";
+
+// ... (existing imports/code)
+
+function ChatItem({
+    chat,
+    currentUserId,
+    isSelected,
+    onClick,
+}: {
+    chat: RTDBChat;
+    currentUserId?: string;
+    isSelected: boolean;
+    onClick: () => void;
+}) {
+    const displayName = getChatDisplayName(chat, currentUserId);
+    const isGroup = chat.type === "group";
+    const unreadCount = chat.unreadCount || 0;
+    const hasUnread = unreadCount > 0;
+    const isMeLastSender = chat.lastMessageSender === currentUserId;
+
+    return (
+        <button
+            onClick={onClick}
+            className={cn(
+                "w-full flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors text-left",
+                isSelected && "bg-muted"
+            )}
+        >
+            <div className="relative">
+                <Avatar className="h-12 w-12">
+                    {chat.icon ? (
+                        <AvatarImage src={chat.icon} />
+                    ) : (
+                        <AvatarFallback className={cn("text-primary-foreground", isGroup ? "bg-chat-avatar" : "bg-primary")}>
+                            {getInitials(displayName)}
+                        </AvatarFallback>
+                    )}
+                </Avatar>
+                {/* Online Indicator (Optional, if we had it for specific user) */}
+                {/* 
+                <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-500 border-2 border-background rounded-full"></div> 
+                */}
+            </div>
+
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                        <p className={cn("truncate text-base", hasUnread ? "font-bold text-foreground" : "font-medium text-foreground")}>
+                            {displayName}
+                        </p>
+                        {isGroup && <Users className="h-3 w-3 text-muted-foreground shrink-0" />}
+                    </div>
+                    <span className={cn("text-xs", hasUnread ? "text-green-500 font-medium" : "text-muted-foreground")}>
+                        {formatTime(chat.lastMessageTime)}
+                    </span>
+                </div>
+
+                <div className="flex items-center justify-between mt-0.5">
+                    <div className="flex items-center gap-1 truncate max-w-[85%]">
+                        {isMeLastSender && (
+                            <CheckCheck className="h-4 w-4 text-blue-400 shrink-0" /> // Assuming read, or use gray for delivered
+                        )}
+                        {chat.lastMessage && (
+                            <p className={cn("text-sm truncate", hasUnread ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                                {chat.lastMessage}
+                            </p>
+                        )}
+                    </div>
+
+                    {hasUnread && (
+                        <div className="bg-green-500 text-white text-[10px] font-bold h-5 min-w-[1.25rem] px-1.5 rounded-full flex items-center justify-center">
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </button>
+    );
+}
 import { cn } from "@/lib/utils";
 
 interface ChatSidebarRTDBProps {
@@ -318,49 +399,3 @@ function getChatDisplayName(chat: RTDBChat, currentUserId?: string): string {
     return "Chat";
 }
 
-function ChatItem({
-    chat,
-    currentUserId,
-    isSelected,
-    onClick,
-}: {
-    chat: RTDBChat;
-    currentUserId?: string;
-    isSelected: boolean;
-    onClick: () => void;
-}) {
-    const displayName = getChatDisplayName(chat, currentUserId);
-    const isGroup = chat.type === "group";
-
-    return (
-        <button
-            onClick={onClick}
-            className={cn(
-                "w-full flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors text-left",
-                isSelected && "bg-muted"
-            )}
-        >
-            <Avatar className="h-12 w-12">
-                {chat.icon ? (
-                    <AvatarImage src={chat.icon} />
-                ) : (
-                    <AvatarFallback className={cn("text-primary-foreground", isGroup ? "bg-chat-avatar" : "bg-primary")}>
-                        {getInitials(displayName)}
-                    </AvatarFallback>
-                )}
-            </Avatar>
-            <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                        <p className="font-medium truncate">{displayName}</p>
-                        {isGroup && <Users className="h-3 w-3 text-muted-foreground shrink-0" />}
-                    </div>
-                    <span className="text-xs text-muted-foreground">{formatTime(chat.lastMessageTime)}</span>
-                </div>
-                {chat.lastMessage && (
-                    <p className="text-sm text-muted-foreground truncate">{chat.lastMessage}</p>
-                )}
-            </div>
-        </button>
-    );
-}

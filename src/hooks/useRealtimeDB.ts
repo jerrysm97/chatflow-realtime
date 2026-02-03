@@ -80,6 +80,7 @@ export interface RTDBChat {
     // Group specific
     admins?: Record<string, boolean>;
     description?: string;
+    unreadCount?: number;
 }
 
 export interface TypingStatus {
@@ -253,8 +254,14 @@ export function useRTDBChats() {
             const chatPromises = chatIds.map(async (chatId) => {
                 const chatRef = ref(rtdb, `chats/${chatId}`);
                 const chatSnapshot = await get(chatRef);
+                const userChatData = data[chatId]; // Get user-specific data like unreadCount
+
                 if (chatSnapshot.exists()) {
-                    return { id: chatId, ...chatSnapshot.val() } as RTDBChat;
+                    return {
+                        id: chatId,
+                        ...chatSnapshot.val(),
+                        unreadCount: userChatData?.unreadCount || 0
+                    } as RTDBChat;
                 }
                 return null;
             });
