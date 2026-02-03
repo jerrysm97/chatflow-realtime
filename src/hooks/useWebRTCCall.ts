@@ -154,7 +154,7 @@ export function useWebRTCCall() {
                 const callData: Omit<CallData, "id"> = {
                     callerId: user.uid,
                     callerName: user.displayName || "Unknown",
-                    callerPhoto: user.photoURL || undefined,
+                    callerPhoto: user.photoURL || null as any, // Firebase needs null, not undefined
                     receiverId,
                     receiverName,
                     type,

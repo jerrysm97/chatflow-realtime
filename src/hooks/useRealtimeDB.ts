@@ -19,6 +19,7 @@ import {
 import { rtdb, storage } from "@/lib/firebase";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
+import { encryptMessage, decryptMessage } from "@/lib/crypto";
 
 // Generate a unique 6-digit user ID using timestamp-based approach
 function generateUniqueUserId(): string {
@@ -61,6 +62,7 @@ export interface RTDBMessage {
     };
     deletedFor?: Record<string, boolean>;
     starredBy?: Record<string, boolean>;
+    reactions?: Record<string, Record<string, boolean>>;
 }
 
 export interface RTDBChat {
@@ -135,6 +137,8 @@ export function useUserProfile() {
                 const existingData = snapshot.val();
                 const updates: Record<string, any> = {
                     ...userData,
+                    phoneNumber: userData.phoneNumber || user.phoneNumber || existingData.phoneNumber || "",
+                    photoURL: userData.photoURL || user.photoURL || existingData.photoURL || "",
                     lastSeen: serverTimestamp(),
                 };
 
@@ -156,10 +160,11 @@ export function useUserProfile() {
                 const newUser = {
                     uid: user.uid,
                     userId,
-                    displayName: user.displayName || user.email?.split("@")[0] || "Anonymous",
-                    email: user.email,
-                    photoURL: user.photoURL || "",
-                    about: "Hey there! I am using ChatFlow",
+                    displayName: userData.displayName || user.displayName || user.email?.split("@")[0] || user.phoneNumber || "Anonymous",
+                    email: userData.email || user.email || "",
+                    phoneNumber: userData.phoneNumber || user.phoneNumber || "",
+                    photoURL: userData.photoURL || user.photoURL || "",
+                    about: userData.about || "Hey there! I am using ChatFlow",
                     isOnline: true,
                     lastSeen: serverTimestamp(),
                     createdAt: serverTimestamp(),
@@ -228,8 +233,12 @@ export function useRTDBChats() {
             });
 
             const chatData = (await Promise.all(chatPromises)).filter(Boolean) as RTDBChat[];
-            chatData.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
-            setChats(chatData);
+            const decryptedChatData = chatData.map(chat => ({
+                ...chat,
+                lastMessage: decryptMessage(chat.lastMessage || "")
+            }));
+            decryptedChatData.sort((a, b) => (b.lastMessageTime || 0) - (a.lastMessageTime || 0));
+            setChats(decryptedChatData);
             setLoading(false);
         });
 
@@ -318,7 +327,12 @@ export function useRTDBChats() {
 export function useRTDBMessages(chatId: string | undefined) {
     const [messages, setMessages] = useState<RTDBMessage[]>([]);
     const [loading, setLoading] = useState(true);
+    const [limit, setLimit] = useState(50);
     const { user } = useAuth();
+
+    const loadMoreMessages = useCallback(() => {
+        setLimit(prev => prev + 50);
+    }, []);
 
     useEffect(() => {
         if (!chatId || !user) {
@@ -327,9 +341,7 @@ export function useRTDBMessages(chatId: string | undefined) {
         }
 
         const messagesRef = ref(rtdb, `messages/${chatId}`);
-        const messagesQuery = query(messagesRef, orderByChild("timestamp"), limitToLast(100));
-
-        const messageMap = new Map<string, RTDBMessage>();
+        const messagesQuery = query(messagesRef, orderByChild("timestamp"), limitToLast(limit));
 
         const handleSnapshot = (snapshot: DataSnapshot) => {
             if (!snapshot.exists()) {
@@ -338,6 +350,7 @@ export function useRTDBMessages(chatId: string | undefined) {
                 return;
             }
 
+            const messageMap = new Map<string, RTDBMessage>();
             snapshot.forEach((child) => {
                 const msg = { id: child.key!, ...child.val() } as RTDBMessage;
                 // Filter out messages deleted for this user
@@ -346,19 +359,22 @@ export function useRTDBMessages(chatId: string | undefined) {
                 }
             });
 
-            const sortedMessages = Array.from(messageMap.values()).sort(
+            const sortedMessages = Array.from(messageMap.values()).map(msg => ({
+                ...msg,
+                text: decryptMessage(msg.text || "")
+            })).sort(
                 (a, b) => a.timestamp - b.timestamp
             );
             setMessages(sortedMessages);
             setLoading(false);
         };
 
-        onValue(messagesQuery, handleSnapshot);
+        const unsubscribe = onValue(messagesQuery, handleSnapshot);
 
-        return () => off(messagesRef);
-    }, [chatId, user]);
+        return () => off(messagesQuery);
+    }, [chatId, user, limit]);
 
-    return { messages, loading };
+    return { messages, loading, loadMoreMessages };
 }
 
 // Hook: Send Message
@@ -408,7 +424,7 @@ export function useRTDBSendMessage(chatId: string | undefined) {
             const messageData: Omit<RTDBMessage, "id"> = {
                 senderId: user.uid,
                 senderName: user.displayName || user.email?.split("@")[0] || "Anonymous",
-                text: text.trim(),
+                text: encryptMessage(text.trim()),
                 type: msgType,
                 timestamp: Date.now(),
                 status: "sent",
@@ -418,9 +434,9 @@ export function useRTDBSendMessage(chatId: string | undefined) {
 
             await set(newMessageRef, messageData);
 
-            // Update chat's last message
+            // Update chat's last message (encrypted)
             await update(chatRef, {
-                lastMessage: text.trim() || `Sent ${msgType}`,
+                lastMessage: encryptMessage(text.trim() || `Sent ${msgType}`),
                 lastMessageTime: Date.now(),
                 lastMessageSender: user.uid,
             });
@@ -431,11 +447,15 @@ export function useRTDBSendMessage(chatId: string | undefined) {
                 const participants = Object.keys(chatSnapshot.val().participants || {});
                 for (const pid of participants) {
                     if (pid !== user.uid) {
-                        // Increment unread count
-                        const userChatRef = ref(rtdb, `userChats/${pid}/${chatId}/unreadCount`);
-                        const unreadSnapshot = await get(userChatRef);
-                        const currentCount = unreadSnapshot.val() || 0;
-                        await set(userChatRef, currentCount + 1);
+                        // Increment unread count (wrapped in try-catch to ignore permission errors)
+                        try {
+                            const userChatRef = ref(rtdb, `userChats/${pid}/${chatId}/unreadCount`);
+                            const unreadSnapshot = await get(userChatRef);
+                            const currentCount = unreadSnapshot.val() || 0;
+                            await set(userChatRef, currentCount + 1);
+                        } catch (err) {
+                            console.warn("Failed to update unread count for user", pid, err);
+                        }
                     }
                 }
             }
@@ -521,6 +541,30 @@ export function useMessageActions(chatId: string | undefined) {
         }
     }, [chatId, user]);
 
+    const addReaction = useCallback(async (messageId: string, emoji: string) => {
+        if (!chatId || !user) return;
+
+        // Use a toggle-like logic: if repeatedly clicking same emoji, could toggle it? 
+        // For now, let's just add/overwrite logic, but ideally we want to toggle.
+        // Let's implement toggle logic: check if exists first? Or just set true.
+        // Simple "Add Reaction" logic:
+        const reactionRef = ref(rtdb, `messages/${chatId}/${messageId}/reactions/${emoji}/${user.uid}`);
+
+        // To toggle, we need to read first or use transaction. Transaction is safer.
+        // However, for simplicity let's just use update/set for adding.
+        // If we want to support removing reaction (toggle), we'd need a separate function or logic.
+        // Let's make this just ADD/SET for now, and handle removal if passed null?
+        // Or better: `toggleReaction`
+
+        await set(reactionRef, true);
+    }, [chatId, user]);
+
+    const removeReaction = useCallback(async (messageId: string, emoji: string) => {
+        if (!chatId || !user) return;
+        const reactionRef = ref(rtdb, `messages/${chatId}/${messageId}/reactions/${emoji}/${user.uid}`);
+        await remove(reactionRef);
+    }, [chatId, user]);
+
     const markAsRead = useCallback(async () => {
         if (!chatId || !user) return;
 
@@ -546,7 +590,7 @@ export function useMessageActions(chatId: string | undefined) {
         }
     }, [chatId, user]);
 
-    return { deleteMessage, starMessage, markAsRead };
+    return { deleteMessage, starMessage, addReaction, removeReaction, markAsRead };
 }
 
 // Hook: User Search (by 6-digit ID, name, email, or phone)

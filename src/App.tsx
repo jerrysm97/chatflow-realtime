@@ -9,6 +9,8 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import PhoneAuth from "@/pages/PhoneAuth";
+import ForgotPassword from "@/pages/ForgotPassword";
+import Settings from "@/pages/Settings";
 import Chat from "@/pages/Chat";
 import NotFound from "@/pages/NotFound";
 import { Loader2 } from "lucide-react";
@@ -62,11 +64,20 @@ function AppRoutes() {
           </AuthRoute>
         }
       />
+      <Route
+        path="/forgot-password"
+        element={
+          <AuthRoute>
+            <ForgotPassword />
+          </AuthRoute>
+        }
+      />
 
       {/* Protected routes */}
       <Route element={<ProtectedRoute />}>
         <Route path="/" element={<Chat />} />
         <Route path="/chat/:roomId" element={<Chat />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
 
       {/* Catch-all */}

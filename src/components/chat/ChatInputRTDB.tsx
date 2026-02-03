@@ -29,6 +29,12 @@ export default function ChatInputRTDB({ roomId, onReply, onCancelReply }: ChatIn
     const fileInputRef = useRef<HTMLInputElement>(null);
     const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingTime, setRecordingTime] = useState(0);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
+
     // Handle typing indicator
     const handleTyping = useCallback(() => {
         setTyping();
@@ -63,6 +69,66 @@ export default function ChatInputRTDB({ roomId, onReply, onCancelReply }: ChatIn
 
     const removeFile = (index: number) => {
         setFiles(files.filter((_, i) => i !== index));
+    };
+
+    const startRecording = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediaRecorder;
+            audioChunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunksRef.current.push(event.data);
+                }
+            };
+
+            mediaRecorder.start();
+            setIsRecording(true);
+            setRecordingTime(0);
+
+            timerRef.current = setInterval(() => {
+                setRecordingTime((prev) => prev + 1);
+            }, 1000);
+        } catch (error) {
+            console.error("Error accessing microphone:", error);
+            toast.error("Could not access microphone");
+        }
+    };
+
+    const stopRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            mediaRecorderRef.current.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+                const audioFile = new File([audioBlob], `voice_note_${Date.now()}.webm`, { type: "audio/webm" });
+                setFiles((prev) => [...prev, audioFile]);
+                setIsRecording(false);
+                setRecordingTime(0);
+                if (timerRef.current) clearInterval(timerRef.current);
+
+                // Stop all tracks to release microphone
+                mediaRecorderRef.current?.stream.getTracks().forEach(track => track.stop());
+            };
+        }
+    };
+
+    const cancelRecording = () => {
+        if (mediaRecorderRef.current && isRecording) {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+            setRecordingTime(0);
+            if (timerRef.current) clearInterval(timerRef.current);
+            mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+            audioChunksRef.current = [];
+        }
+    };
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, "0")}`;
     };
 
     const handleSend = async () => {
@@ -126,6 +192,10 @@ export default function ChatInputRTDB({ roomId, onReply, onCancelReply }: ChatIn
                                     alt={f.name}
                                     className="h-12 w-12 object-cover rounded"
                                 />
+                            ) : f.type.startsWith("audio/") ? (
+                                <div className="h-12 w-12 bg-emerald-100 rounded flex items-center justify-center">
+                                    <Mic className="h-5 w-5 text-emerald-600" />
+                                </div>
                             ) : (
                                 <div className="h-12 w-12 bg-background rounded flex items-center justify-center">
                                     <Paperclip className="h-5 w-5 text-muted-foreground" />
@@ -147,51 +217,82 @@ export default function ChatInputRTDB({ roomId, onReply, onCancelReply }: ChatIn
             )}
 
             <div className="flex items-end gap-2">
-                <input
-                    type="file"
-                    multiple
-                    className="hidden"
-                    ref={fileInputRef}
-                    onChange={handleFileSelect}
-                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.zip,.txt"
-                />
+                {isRecording ? (
+                    <div className="flex-1 flex items-center gap-4 bg-muted/50 p-2 rounded-full animate-in fade-in">
+                        <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse ml-2" />
+                        <span className="flex-1 font-mono text-sm">{formatTime(recordingTime)}</span>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={cancelRecording}
+                            className="text-destructive hover:text-destructive"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            size="icon"
+                            className="rounded-full bg-emerald-500 hover:bg-emerald-600 text-white h-9 w-9"
+                            onClick={stopRecording}
+                        >
+                            <Send className="h-4 w-4" />
+                        </Button>
+                    </div>
+                ) : (
+                    <>
+                        <input
+                            type="file"
+                            multiple
+                            className="hidden"
+                            ref={fileInputRef}
+                            onChange={handleFileSelect}
+                            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.zip,.txt"
+                        />
 
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-full shrink-0 text-muted-foreground"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={sending}
-                >
-                    <Paperclip className="h-5 w-5" />
-                </Button>
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-full shrink-0 text-muted-foreground"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={sending}
+                        >
+                            <Paperclip className="h-5 w-5" />
+                        </Button>
 
-                <Button variant="ghost" size="icon" className="rounded-full shrink-0 text-muted-foreground">
-                    <Smile className="h-5 w-5" />
-                </Button>
+                        <Textarea
+                            ref={textareaRef}
+                            placeholder="Type a message"
+                            className="flex-1 resize-none min-h-[44px] max-h-[120px] py-3 rounded-3xl border-0 bg-background focus-visible:ring-1"
+                            value={message}
+                            onChange={(e) => {
+                                setMessage(e.target.value);
+                                handleTyping();
+                            }}
+                            onKeyDown={handleKeyDown}
+                            rows={1}
+                            disabled={sending}
+                        />
 
-                <Textarea
-                    ref={textareaRef}
-                    placeholder="Type a message"
-                    className="flex-1 resize-none min-h-[44px] max-h-[120px] py-3 rounded-3xl border-0 bg-background focus-visible:ring-1"
-                    value={message}
-                    onChange={(e) => {
-                        setMessage(e.target.value);
-                        handleTyping();
-                    }}
-                    onKeyDown={handleKeyDown}
-                    rows={1}
-                    disabled={sending}
-                />
-
-                <Button
-                    size="icon"
-                    className="rounded-full shrink-0 h-11 w-11"
-                    onClick={handleSend}
-                    disabled={(!message.trim() && files.length === 0) || sending}
-                >
-                    {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                </Button>
+                        {message.trim() || files.length > 0 ? (
+                            <Button
+                                size="icon"
+                                className="rounded-full shrink-0 h-11 w-11"
+                                onClick={handleSend}
+                                disabled={sending}
+                            >
+                                {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                            </Button>
+                        ) : (
+                            <Button
+                                size="icon"
+                                className="rounded-full shrink-0 h-11 w-11 bg-muted hover:bg-muted-foreground/10 text-muted-foreground"
+                                onClick={startRecording}
+                                disabled={sending}
+                            >
+                                <Mic className="h-5 w-5" />
+                            </Button>
+                        )}
+                    </>
+                )}
             </div>
         </div>
     );

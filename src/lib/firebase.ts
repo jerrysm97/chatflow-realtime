@@ -20,5 +20,11 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const rtdb = getDatabase(app);
+
+// Enable logging for RTDB during development
+if (import.meta.env.DEV) {
+  // enableLogging(true); // From firebase/database
+}
+
 export default app;
 

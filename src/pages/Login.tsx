@@ -102,6 +102,11 @@ export default function Login() {
             </Link>
           </div>
           <div className="mt-4 text-center">
+            <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-primary">
+              Forgot your password?
+            </Link>
+          </div>
+          <div className="mt-2 text-center">
             <Link to="/phone-auth" className="text-sm text-muted-foreground hover:text-primary">
               Use phone number instead
             </Link>

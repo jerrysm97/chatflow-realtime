@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRTDBMessages, useMessageActions, useTypingIndicator, RTDBMessage } from "@/hooks/useRealtimeDB";
+import { LinkPreview } from "./LinkPreview";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -11,7 +12,8 @@ import {
     ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
-import { Reply, Star, Trash2, Copy, Forward, Check, CheckCheck, FileIcon, Download } from "lucide-react";
+import { Reply, Star, Trash2, Copy, Forward, Check, CheckCheck, FileIcon, Download, Smile } from "lucide-react";
+import { toast } from "sonner";
 
 interface ChatMessagesRTDBProps {
     roomId: string;
@@ -158,7 +160,7 @@ function MessageBubble({
     roomId: string;
     onReply?: (msg: { id: string; text: string; senderName: string }) => void;
 }) {
-    const { deleteMessage, starMessage } = useMessageActions(roomId);
+    const { deleteMessage, starMessage, addReaction, removeReaction } = useMessageActions(roomId);
     const { user } = useAuth();
     const isStarred = message.starredBy?.[user?.uid || ""];
 
@@ -174,10 +176,21 @@ function MessageBubble({
         });
     };
 
+    const handleReaction = (emoji: string) => {
+        // Toggle reaction
+        const hasReacted = message.reactions?.[emoji]?.[user?.uid || ""];
+
+        if (hasReacted) {
+            removeReaction(message.id, emoji);
+        } else {
+            addReaction(message.id, emoji);
+        }
+    };
+
     return (
         <ContextMenu>
             <ContextMenuTrigger>
-                <div className={cn("flex gap-2 items-end", isOwn ? "justify-end" : "justify-start")}>
+                <div className={cn("flex gap-2 items-end", isOwn ? "justify-end" : "justify-start", "group relative")}>
                     {!isOwn && (
                         <div className="w-8">
                             {showAvatar && (
@@ -189,6 +202,22 @@ function MessageBubble({
                             )}
                         </div>
                     )}
+
+                    {/* Reaction Button (visible on hover) */}
+                    <button
+                        className={cn(
+                            "absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full bg-background border shadow-sm z-10",
+                            isOwn ? "left-0 -translate-x-full mr-2" : "right-0 translate-x-full ml-2"
+                        )}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            // Show emoji picker logic would go here
+                            handleReaction("👍");
+                        }}
+                    >
+                        <Smile className="h-4 w-4 text-muted-foreground" />
+                    </button>
+
                     <div
                         className={cn(
                             "max-w-[70%] px-4 py-2 rounded-2xl shadow-sm relative",
@@ -261,7 +290,39 @@ function MessageBubble({
                         )}
 
                         {/* Text Content */}
-                        {message.text && <p className="break-words">{message.text}</p>}
+                        {message.text && (
+                            <div className="break-words">
+                                {message.text.split(/(https?:\/\/[^\s]+)/g).map((part, i) => (
+                                    part.match(/https?:\/\/[^\s]+/) ? (
+                                        <a href={part} key={i} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-200">
+                                            {part}
+                                        </a>
+                                    ) : (
+                                        <span key={i}>{part}</span>
+                                    )
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Link Preview (only for the first link found) */}
+                        {message.text && (() => {
+                            const match = message.text.match(/(https?:\/\/[^\s]+)/);
+                            if (match) {
+                                return <LinkPreview url={match[0]} />;
+                            }
+                            return null;
+                        })()}
+
+                        {/* Reactions Display */}
+                        {message.reactions && Object.keys(message.reactions).length > 0 && (
+                            <div className="flex gap-1 mt-1 flex-wrap">
+                                {Object.entries(message.reactions).map(([emoji, users]) => (
+                                    <span key={emoji} className="bg-background/80 rounded-full px-1.5 py-0.5 text-xs border shadow-sm">
+                                        {emoji} {Object.keys(users).length > 1 && Object.keys(users).length}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
 
                         {/* Footer */}
                         <div
@@ -299,6 +360,10 @@ function MessageBubble({
                 <ContextMenuItem onClick={() => starMessage(message.id, !isStarred)}>
                     <Star className={cn("mr-2 h-4 w-4", isStarred && "fill-current")} />
                     {isStarred ? "Unstar" : "Star"}
+                </ContextMenuItem>
+                <ContextMenuItem>
+                    <Smile className="mr-2 h-4 w-4" />
+                    React
                 </ContextMenuItem>
                 {isOwn && (
                     <ContextMenuItem
