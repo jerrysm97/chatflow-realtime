@@ -164,7 +164,7 @@ export default function ChatInputRTDB({ roomId, onReply, onCancelReply }: ChatIn
     }, [message]);
 
     return (
-        <div className="p-3 bg-chat-input border-t flex flex-col gap-2">
+        <div className="p-3 pb-safe bg-chat-input border-t flex flex-col gap-2">
             {/* Reply Preview */}
             {onReply && (
                 <div className="flex items-center gap-2 p-2 bg-muted rounded-lg text-sm">

@@ -32,10 +32,34 @@ export interface CallState {
 
 const ICE_SERVERS = {
     iceServers: [
+        // STUN server for NAT discovery
         { urls: "stun:stun.l.google.com:19302" },
         { urls: "stun:stun1.l.google.com:19302" },
+
+        // TURN server for relay (CRITICAL for production)
+        {
+            urls: "turn:openrelay.metered.ca:80",
+            username: "openrelayproject",
+            credential: "openrelayproject"
+        },
+        {
+            urls: "turn:openrelay.metered.ca:443",
+            username: "openrelayproject",
+            credential: "openrelayproject"
+        },
     ],
 };
+
+export interface CallState {
+    status: CallStatus;
+    callData: CallData | null;
+    localStream: MediaStream | null;
+    remoteStream: MediaStream | null;
+    isMuted: boolean;
+    isVideoOff: boolean;
+    callDuration: number;
+    connectionState: "new" | "checking" | "connected" | "completed" | "failed" | "disconnected" | "closed";
+}
 
 export function useWebRTCCall() {
     const { user } = useAuth();
@@ -47,7 +71,10 @@ export function useWebRTCCall() {
         isMuted: false,
         isVideoOff: false,
         callDuration: 0,
+        connectionState: "new",
     });
+
+    const [isFrontCamera, setIsFrontCamera] = useState(true);
 
     const peerConnection = useRef<RTCPeerConnection | null>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
@@ -76,11 +103,19 @@ export function useWebRTCCall() {
         return () => off(incomingCallsRef);
     }, [user, state.status]);
 
-    const getMediaStream = useCallback(async (type: CallType) => {
+    const getMediaStream = useCallback(async (type: CallType, facingMode: 'user' | 'environment' = 'user') => {
         try {
             const constraints = {
-                audio: true,
-                video: type === "video",
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
+                video: type === "video" ? {
+                    facingMode: facingMode,
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                } : false,
             };
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             localStreamRef.current = stream;
@@ -121,6 +156,23 @@ export function useWebRTCCall() {
             }
         };
 
+        pc.oniceconnectionstatechange = () => {
+            const connectionState = pc.iceConnectionState;
+            console.log("ICE Connection State:", connectionState);
+
+            setState(prev => ({
+                ...prev,
+                connectionState
+            }));
+
+            // Handle connection failures
+            if (connectionState === "failed") {
+                console.error("ICE connection failed - likely NAT/firewall issue");
+                // Attempt to restart ICE
+                pc.restartIce();
+            }
+        };
+
         peerConnection.current = pc;
         return pc;
     }, [user]);
@@ -130,6 +182,41 @@ export function useWebRTCCall() {
         durationInterval.current = setInterval(() => {
             setState((prev) => ({ ...prev, callDuration: prev.callDuration + 1 }));
         }, 1000);
+    }, []);
+
+    // Helper: Process queued candidates
+    const candidateQueue = useRef<RTCIceCandidate[]>([]);
+
+    const processCandidateQueue = useCallback(async () => {
+        if (!peerConnection.current || !peerConnection.current.remoteDescription) return;
+
+        while (candidateQueue.current.length > 0) {
+            const candidate = candidateQueue.current.shift();
+            if (candidate) {
+                try {
+                    await peerConnection.current.addIceCandidate(candidate);
+                } catch (e) {
+                    console.error("Error adding queued candidate:", e);
+                }
+            }
+        }
+    }, []);
+
+    const handleCandidate = useCallback(async (candidate: RTCIceCandidateInit) => {
+        if (!peerConnection.current) return;
+
+        const iceCandidate = new RTCIceCandidate(candidate);
+
+        if (peerConnection.current.remoteDescription) {
+            try {
+                await peerConnection.current.addIceCandidate(iceCandidate);
+            } catch (e) {
+                console.error("Error adding candidate:", e);
+            }
+        } else {
+            console.log("Queueing candidate (no remote description)");
+            candidateQueue.current.push(iceCandidate);
+        }
     }, []);
 
     const initiateCall = useCallback(
@@ -145,7 +232,7 @@ export function useWebRTCCall() {
                 // Create peer connection
                 const pc = createPeerConnection();
 
-                // Add tracks to peer connection
+                // Add tracks
                 stream.getTracks().forEach((track) => {
                     pc.addTrack(track, stream);
                 });
@@ -154,7 +241,7 @@ export function useWebRTCCall() {
                 const callData: Omit<CallData, "id"> = {
                     callerId: user.uid,
                     callerName: user.displayName || "Unknown",
-                    callerPhoto: user.photoURL || null as any, // Firebase needs null, not undefined
+                    callerPhoto: user.photoURL || null as any,
                     receiverId,
                     receiverName,
                     type,
@@ -190,6 +277,7 @@ export function useWebRTCCall() {
                     const answer = snapshot.val();
                     if (answer && pc.signalingState !== "stable") {
                         await pc.setRemoteDescription(new RTCSessionDescription(answer));
+                        await processCandidateQueue(); // Process any queued candidates
                     }
                 });
 
@@ -197,17 +285,18 @@ export function useWebRTCCall() {
                 const candidatesRef = ref(rtdb, `calls/${callIdRef.current}/candidates/${receiverId}`);
                 onChildAdded(candidatesRef, async (snapshot) => {
                     const candidate = snapshot.val();
-                    if (candidate && pc.remoteDescription) {
-                        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                    if (candidate) {
+                        handleCandidate(candidate);
                     }
                 });
 
             } catch (error) {
                 console.error("Error initiating call:", error);
                 endCall();
+                throw error; // Re-throw so UI can handle it
             }
         },
-        [user, state.status, getMediaStream, createPeerConnection]
+        [user, state.status, getMediaStream, createPeerConnection, processCandidateQueue, handleCandidate] // Added dependencies
     );
 
     const answerCall = useCallback(async () => {
@@ -258,16 +347,20 @@ export function useWebRTCCall() {
                 );
                 onChildAdded(candidatesRef, async (snapshot) => {
                     const candidate = snapshot.val();
-                    if (candidate && pc.remoteDescription) {
-                        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                    if (candidate) {
+                        handleCandidate(candidate);
                     }
                 });
+
+                // Process queue just in case
+                await processCandidateQueue();
             }
         } catch (error) {
             console.error("Error answering call:", error);
             endCall();
         }
-    }, [user, state.callData, state.status, getMediaStream, createPeerConnection]);
+    }, [user, state.callData, state.status, getMediaStream, createPeerConnection, processCandidateQueue, handleCandidate]);
+
 
     const rejectCall = useCallback(async () => {
         if (!user || !callIdRef.current) return;
@@ -295,6 +388,72 @@ export function useWebRTCCall() {
 
         cleanup();
     }, [user, state.callData]);
+
+    const switchCamera = useCallback(async () => {
+        if (!state.localStream) {
+            console.error("No local stream available");
+            return;
+        }
+
+        const videoTrack = state.localStream.getVideoTracks()[0];
+        if (!videoTrack) {
+            console.error("No video track found");
+            return;
+        }
+
+        // Determine new facing mode
+        const newFacingMode = isFrontCamera ? 'environment' : 'user';
+
+        try {
+            // Stop current video track
+            videoTrack.stop();
+
+            // Request new stream with new facing mode
+            const newStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
+                video: {
+                    facingMode: newFacingMode,
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            });
+
+            const newVideoTrack = newStream.getVideoTracks()[0];
+            const audioTrack = state.localStream.getAudioTracks()[0];
+
+            // Create new MediaStream with new video and existing audio
+            const updatedStream = new MediaStream([newVideoTrack, audioTrack]);
+
+            // Replace video track in peer connection (seamless switch without renegotiation)
+            if (peerConnection.current) {
+                const sender = peerConnection.current
+                    .getSenders()
+                    .find(s => s.track?.kind === 'video');
+
+                if (sender) {
+                    await sender.replaceTrack(newVideoTrack);
+                    console.log("Video track replaced successfully");
+                }
+            }
+
+            // Update local stream state
+            setState(prev => ({
+                ...prev,
+                localStream: updatedStream
+            }));
+
+            // Toggle camera state
+            setIsFrontCamera(!isFrontCamera);
+
+        } catch (err) {
+            console.error("Failed to switch camera:", err);
+            // alert("Unable to switch camera. Please check camera permissions."); // Don't use alert in React
+        }
+    }, [state.localStream, isFrontCamera]);
 
     const cleanup = useCallback(() => {
         // Stop all tracks
@@ -325,6 +484,7 @@ export function useWebRTCCall() {
             isMuted: false,
             isVideoOff: false,
             callDuration: 0,
+            connectionState: "new",
         });
     }, []);
 
@@ -363,6 +523,8 @@ export function useWebRTCCall() {
         endCall,
         toggleMute,
         toggleVideo,
+        switchCamera,
+        isFrontCamera
     };
 }
 

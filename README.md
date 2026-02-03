@@ -1,73 +1,103 @@
-# Welcome to your Lovable project
+# ChatFlow Realtime
 
-## Project info
+A modern, full-featured chat application built with React, Vite, Firebase, and WebRTC.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 🚀 Features
 
-## How can I edit this code?
+- **Real-time Messaging**: Instant message delivery using Firebase Realtime Database.
+- **Multimedia Support**: Send Voice Notes, Images, Videos, and Files.
+- **Video & Audio Calls**: Native WebRTC implementation with connection monitoring and camera switching.
+- **Rich Link Previews**: Automatically expands shared URLs with title, description, and image.
+- **Message Reactions**: React to messages with emojis.
+- **End-to-End Encryption**: Client-side AES encryption for message privacy.
+- **PWA & Mobile Ready**: Responsive design, installable as a PWA, or deployable via Capacitor.
 
-There are several ways of editing your application.
+## 🛠️ Tech Stack
 
-**Use Lovable**
+- **Frontend**: React, TypeScript, Vite, Tailwind CSS, shadcn/ui.
+- **Backend & DB**: Firebase Realtime Database (Messaging/Signaling) & Firestore (User Profiles/Metadata).
+- **Video Calls**: WebRTC (STUN/TURN).
+- **State Management**: React Context + Hooks.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## 📦 Installation
 
-Changes made via Lovable will be committed automatically to this repo.
+1. **Clone the repository:**
+   ```bash
+   git clone <YOUR_GIT_URL>
+   cd chatflow-realtime
+   ```
 
-**Use your preferred IDE**
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+3. **Configure Environment Variables:**
+   Copy `.env.example` to `.env` and fill in your keys:
+   ```bash
+   cp .env.example .env
+   ```
+   
+   - `VITE_ENCRYPTION_KEY`: A random 32-character string for AES encryption.
+   - `VITE_TWILIO_TURN_...`: Optional, for reliable video calls on mobile networks.
+   - Firebase config keys.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+4. **Run Locally:**
+   ```bash
+   npm run dev
+   ```
 
-Follow these steps:
+## 🏗️ Database Architecture
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+Measurement of "Split Brain" architecture for optimal performance:
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### 1. Firebase Realtime Database (RTDB)
+Used for high-frequency, low-latency data:
+- **Messages**: `messages/{chatId}/{messageId}`
+- **WebRTC Signaling**: `calls/{userId}/incoming`, `calls/{callId}/{offer|answer|candidates}`
+- **User Presence**: `users/{uid}/isOnline`, `users/{uid}/lastSeen`
+- **Typing Indicators**: `typing/{chatId}/{uid}`
 
-# Step 3: Install the necessary dependencies.
-npm i
+### 2. Cloud Firestore
+Used for structured, queryable data:
+- **Chat Rooms**: `chatRooms/{roomId}` (Metadata, participants)
+- **User Profiles**: `users/{uid}` (Static profile data)
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+### Standardization Note
+New features should check `src/services/messageService.ts` for a unified service layer pattern that bridges these databases.
 
-**Edit a file directly in GitHub**
+## 🎥 WebRTC & Video Calls
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+The app uses a p2p connection via WebRTC.
+- **STUN Servers**: Google's public STUN servers (Default).
+- **TURN Servers**: Configured in `useWebRTCCall.ts`. For production, uncomment the Twilio/Coturn configuration to ensure connectivity across firewalls and mobile networks (4G/5G).
 
-**Use GitHub Codespaces**
+## 📱 Mobile Deployment (Capacitor)
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+To deploy as a native Android/iOS app:
 
-## What technologies are used for this project?
+1. **Initialize Capacitor:**
+   ```bash
+   npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/ios
+   npx cap init
+   ```
 
-This project is built with:
+2. **Build the App:**
+   ```bash
+   npm run build
+   npx cap sync
+   ```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+3. **Open Native IDE:**
+   ```bash
+   npx cap open android  # Opens Android Studio
+   npx cap open ios      # Opens Xcode
+   ```
 
-## How can I deploy this project?
+4. **Permissions:**
+   Ensure `AndroidManifest.xml` and `Info.plist` request Camera and Microphone permissions.
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## 🔒 Security
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- **AES Encryption**: Messages are encrypted client-side before sending. Keys are never stored in the database.
+- **RLS/Rules**: Firebase Security Rules must be configured to allow read/write only to authenticated participants.

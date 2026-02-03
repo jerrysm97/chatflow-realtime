@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { useWebRTCCall, formatCallDuration, CallType } from "@/hooks/useWebRTCCall";
+import { formatCallDuration, CallType } from "@/hooks/useWebRTCCall";
+import { useCall } from "@/contexts/CallContext";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -9,7 +10,7 @@ import {
     VideoOff,
     Mic,
     MicOff,
-    X,
+    RotateCcw,
     PhoneIncoming,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,7 +36,8 @@ export default function CallUI({ onClose }: CallUIProps) {
         endCall,
         toggleMute,
         toggleVideo,
-    } = useWebRTCCall();
+        switchCamera,
+    } = useCall();
 
     const localVideoRef = useRef<HTMLVideoElement>(null);
     const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -61,10 +63,23 @@ export default function CallUI({ onClose }: CallUIProps) {
     const otherUserName = state.callData?.callerName || state.callData?.receiverName || "Unknown";
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/95 flex flex-col">
+        <div className="fixed inset-0 z-50 bg-black/95 flex flex-col h-[100dvh] overflow-hidden">
+            {/* Connection Status Indicators */}
+            {state.connectionState === "checking" && (
+                <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-yellow-500/90 text-white px-4 py-2 rounded-full text-sm z-50">
+                    Connecting...
+                </div>
+            )}
+
+            {state.connectionState === "failed" && (
+                <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-red-500/90 text-white px-4 py-2 rounded-full text-sm z-50">
+                    Connection failed - Check your network
+                </div>
+            )}
+
             {/* Video Streams */}
             {isVideoCall && state.status === "connected" ? (
-                <div className="flex-1 relative">
+                <div className="flex-1 relative min-h-0">
                     {/* Remote Video (Full Screen) */}
                     <video
                         ref={remoteVideoRef}
@@ -74,14 +89,14 @@ export default function CallUI({ onClose }: CallUIProps) {
                     />
 
                     {/* Local Video (PiP) */}
-                    <div className="absolute top-4 right-4 w-32 h-48 md:w-48 md:h-64 rounded-xl overflow-hidden shadow-lg border-2 border-white/20">
+                    <div className="absolute top-4 right-4 w-32 h-48 md:w-40 md:h-56 rounded-lg overflow-hidden shadow-lg border-2 border-white/20">
                         <video
                             ref={localVideoRef}
                             autoPlay
                             playsInline
                             muted
                             className={cn(
-                                "w-full h-full object-cover",
+                                "w-full h-full object-cover mirror", // Added mirror class
                                 state.isVideoOff && "hidden"
                             )}
                         />
@@ -112,19 +127,22 @@ export default function CallUI({ onClose }: CallUIProps) {
 
                     {state.status === "ringing" && (
                         <div className="flex items-center gap-2 mt-2">
-                            {isVideoCall ? (
+                            {/* isVideoCall logic is tricky here because callData might be partial. 
+                                It's safer to rely on callData.type 
+                            */}
+                            {state.callData?.type === "video" ? (
                                 <Video className="w-5 h-5 text-gray-400" />
                             ) : (
                                 <Phone className="w-5 h-5 text-gray-400" />
                             )}
-                            <span className="text-gray-400">{isVideoCall ? "Video Call" : "Voice Call"}</span>
+                            <span className="text-gray-400">{state.callData?.type === "video" ? "Video Call" : "Voice Call"}</span>
                         </div>
                     )}
                 </div>
             )}
 
             {/* Controls */}
-            <div className="p-8 bg-gradient-to-t from-black/80 to-transparent">
+            <div className="p-4 pb-8 md:p-8 bg-gradient-to-t from-black/80 to-transparent">
                 <div className="flex items-center justify-center gap-6">
                     {/* Incoming Call Controls */}
                     {state.status === "ringing" && (
@@ -160,18 +178,30 @@ export default function CallUI({ onClose }: CallUIProps) {
                             </Button>
 
                             {isVideoCall && (
-                                <Button
-                                    size="lg"
-                                    variant={state.isVideoOff ? "destructive" : "secondary"}
-                                    className="w-14 h-14 rounded-full"
-                                    onClick={toggleVideo}
-                                >
-                                    {state.isVideoOff ? (
-                                        <VideoOff className="w-6 h-6" />
-                                    ) : (
-                                        <Video className="w-6 h-6" />
-                                    )}
-                                </Button>
+                                <>
+                                    <Button
+                                        size="lg"
+                                        variant={state.isVideoOff ? "destructive" : "secondary"}
+                                        className="w-14 h-14 rounded-full"
+                                        onClick={toggleVideo}
+                                    >
+                                        {state.isVideoOff ? (
+                                            <VideoOff className="w-6 h-6" />
+                                        ) : (
+                                            <Video className="w-6 h-6" />
+                                        )}
+                                    </Button>
+
+                                    <Button
+                                        variant="secondary"
+                                        size="icon"
+                                        onClick={() => switchCamera()}
+                                        className="w-14 h-14 rounded-full bg-white/20 hover:bg-white/30 text-white"
+                                        title="Switch Camera"
+                                    >
+                                        <RotateCcw className="h-6 w-6" />
+                                    </Button>
+                                </>
                             )}
 
                             <Button

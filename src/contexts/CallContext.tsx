@@ -9,6 +9,8 @@ interface CallContextType {
     endCall: () => Promise<void>;
     toggleMute: () => void;
     toggleVideo: () => void;
+    switchCamera: () => Promise<void>;
+    isFrontCamera: boolean;
 }
 
 const CallContext = createContext<CallContextType | null>(null);

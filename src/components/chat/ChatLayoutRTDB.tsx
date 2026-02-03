@@ -9,6 +9,7 @@ import ChatHeaderRTDB from "./ChatHeaderRTDB";
 import CallUI from "@/components/call/CallUI";
 import { Button } from "@/components/ui/button";
 import { Menu, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface ChatLayoutRTDBProps {
@@ -39,7 +40,12 @@ export default function ChatLayoutRTDB({ initialChatId }: ChatLayoutRTDBProps) {
             const otherUserId = Object.keys(selectedChat.participants).find((id) => id !== user.uid);
             if (otherUserId && selectedChat.participantNames) {
                 const otherUserName = selectedChat.participantNames[otherUserId] || "User";
-                await initiateCall(otherUserId, otherUserName, type);
+                try {
+                    await initiateCall(otherUserId, otherUserName, type);
+                } catch (error) {
+                    console.error("Call failed:", error);
+                    toast.error("Failed to start call. Please check camera/microphone permissions.");
+                }
             }
         }
     };

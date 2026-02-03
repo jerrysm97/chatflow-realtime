@@ -25,19 +25,33 @@ export const encryptMessage = (text: string): string => {
 export const decryptMessage = (cipherText: string): string => {
     if (!cipherText) return '';
 
+    // Check if it looks like a CryptoJS encrypted string (starts with "Salted__" in base64 is "U2FsdGVk")
+    const isEncrypted = cipherText.startsWith('U2FsdGVk');
+
     try {
         const bytes = CryptoJS.AES.decrypt(cipherText, ENCRYPTION_KEY);
         const decryptedText = bytes.toString(CryptoJS.enc.Utf8);
 
-        // If decryptedText is empty, it might be an unencrypted message
+        // If decryptedText is empty but input looked encrypted, the key is likely wrong
+        if (!decryptedText && isEncrypted) {
+            console.warn('[Crypto] Decryption yielded empty string (Wrong Key?)');
+            return '[Message Encrypted]';
+        }
+
+        // If decryptedText is empty and it didn't look encrypted, it might be just valid empty string or garbage
         if (!decryptedText) {
             return cipherText;
         }
 
         return decryptedText;
     } catch (error) {
-        // Decryption failed, likely an old unencrypted message
-        console.warn('[Crypto] Decryption failed, returning original text (likely unencrypted)');
+        // If it was definitely encrypted but failed, show error
+        if (isEncrypted) {
+            console.error('[Crypto] Decryption failed for encrypted message:', error);
+            return '[Message Encrypted]';
+        }
+
+        // Otherwise assume it was plain text
         return cipherText;
     }
 };

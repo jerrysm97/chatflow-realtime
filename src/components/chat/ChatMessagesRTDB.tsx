@@ -55,21 +55,62 @@ export default function ChatMessagesRTDB({ roomId, onReply }: ChatMessagesRTDBPr
         }
     }, [roomId, messages.length, markAsRead]);
 
-    // Handle scroll
-    const handleScroll = useCallback(() => {
-        if (scrollRef.current) {
-            const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-            setShouldAutoScroll(scrollHeight - scrollTop - clientHeight < 100);
+    // Safe message text parser
+    const renderMessageText = (text: any): string => {
+        // Handle normal string messages
+        if (typeof text === 'string') return text;
+
+        // Handle accidentally serialized objects
+        if (typeof text === 'object') {
+            // Check if it's a timestamp object incorrectly stored in text field
+            if (text?.seconds) {
+                console.error("Timestamp found in message text field - data structure error");
+                return "[Message format error - please resend]";
+            }
+
+            // Check if it's a JSON object that needs to be parsed
+            if (text?.content) return String(text.content);
+
+            // Last resort: stringify the object for debugging
+            try {
+                return JSON.stringify(text);
+            } catch (e) {
+                console.error("Failed to parse message object:", e);
+                return "[Unable to display message]";
+            }
         }
+
+        // Fallback for any other type
+        return String(text);
+    };
+
+    const handleScroll = useCallback(() => {
+        const scrollContainer = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]");
+        if (!scrollContainer) return;
+
+        const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+        setShouldAutoScroll(scrollHeight - scrollTop - clientHeight < 100);
     }, []);
 
     useEffect(() => {
         const scrollContainer = scrollRef.current?.querySelector("[data-radix-scroll-area-viewport]");
-        if (scrollContainer) {
-            scrollContainer.addEventListener("scroll", handleScroll);
-            return () => scrollContainer.removeEventListener("scroll", handleScroll);
+
+        if (!scrollContainer) {
+            return;
         }
+
+        // Capture the element reference for cleanup
+        const element = scrollContainer;
+
+        element.addEventListener("scroll", handleScroll);
+
+        // Use the captured reference in cleanup
+        return () => {
+            element.removeEventListener("scroll", handleScroll);
+        };
     }, [handleScroll]);
+
+    // ... (rest of useEffects)
 
     useEffect(() => {
         if (scrollRef.current && shouldAutoScroll) {
@@ -120,7 +161,7 @@ export default function ChatMessagesRTDB({ roomId, onReply }: ChatMessagesRTDBPr
                     return (
                         <MessageBubble
                             key={message.id}
-                            message={message}
+                            message={{ ...message, text: renderMessageText(message.text) }}
                             isOwn={isOwn}
                             showAvatar={showAvatar}
                             roomId={roomId}

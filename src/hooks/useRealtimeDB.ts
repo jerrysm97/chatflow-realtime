@@ -421,10 +421,12 @@ export function useRTDBSendMessage(chatId: string | undefined) {
             }
 
             const newMessageRef = push(messagesRef);
+            const sanitizedText = typeof text === 'string' ? text.trim() : String(text || "");
+
             const messageData: Omit<RTDBMessage, "id"> = {
                 senderId: user.uid,
                 senderName: user.displayName || user.email?.split("@")[0] || "Anonymous",
-                text: encryptMessage(text.trim()),
+                text: encryptMessage(sanitizedText),
                 type: msgType,
                 timestamp: Date.now(),
                 status: "sent",
