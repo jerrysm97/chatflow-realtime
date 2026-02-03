@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMessages } from "@/hooks/useChat";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -12,7 +12,8 @@ interface ChatMessagesProps {
   roomId: string;
 }
 
-function formatMessageTime(timestamp: Timestamp | Date): string {
+function formatMessageTime(timestamp: Timestamp | Date | null): string {
+  if (!timestamp) return "Sending...";
   const date = timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
@@ -30,12 +31,40 @@ export default function ChatMessages({ roomId }: ChatMessagesProps) {
   const { messages, loading } = useMessages(roomId);
   const { user } = useAuth();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+
+  // Handle scroll behavior
+  const handleScroll = () => {
+    if (scrollRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+      // If user is near bottom (within 100px), enable auto-scroll
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      setShouldAutoScroll(isNearBottom);
+    }
+  };
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const scrollContainer = scrollRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (scrollContainer) {
+      scrollContainer.addEventListener('scroll', handleScroll);
+      return () => scrollContainer.removeEventListener('scroll', handleScroll);
     }
-  }, [messages]);
+  }, []);
+
+  useEffect(() => {
+    // Only auto-scroll if enabled or if it's the very first load
+    if (scrollRef.current && (shouldAutoScroll || messages.length === 0)) {
+      // Using requestAnimationFrame to ensure DOM has updated
+      requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          const scrollContainer = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+          if (scrollContainer) {
+            scrollContainer.scrollTop = scrollContainer.scrollHeight;
+          }
+        }
+      });
+    }
+  }, [messages, shouldAutoScroll]);
 
   if (loading) {
     return (
@@ -71,18 +100,21 @@ export default function ChatMessages({ roomId }: ChatMessagesProps) {
     );
   }
 
-  // Reverse to show oldest first (Firestore query is desc)
-  const orderedMessages = [...messages].reverse();
+  // Use messages directly (already sorted asc)
+  const orderedMessages = messages;
 
   return (
     <ScrollArea className="flex-1 bg-chat-background" ref={scrollRef}>
       <div className="p-4 space-y-4">
         {orderedMessages.map((message, index) => {
-          const isOwn = message.user._id === user?.uid;
+          // Check for valid user object, fallback if missing
+          const messageUser = message.user || { _id: "unknown", name: "Unknown" };
+          const isOwn = messageUser._id === user?.uid;
+
           const showAvatar =
             !isOwn &&
             (index === 0 ||
-              orderedMessages[index - 1]?.user._id !== message.user._id);
+              orderedMessages[index - 1]?.user?._id !== messageUser._id);
 
           return (
             <MessageBubble

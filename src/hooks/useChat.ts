@@ -67,11 +67,12 @@ export function useMessages(roomId: string | undefined) {
     }
 
     const messagesRef = collection(db, "chatRooms", roomId, "messages");
-    const q = query(messagesRef, orderBy("createdAt", "desc"));
+    // Fix 1: Change 'desc' to 'asc' to query in display order
+    const q = query(messagesRef, orderBy("createdAt", "asc"));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const messagesData = snapshot.docs.map((doc) => ({
-        _id: doc.id,
+        _id: doc.id, // Keeping _id for compatibility, but it matches doc.id now
         ...doc.data(),
       })) as Message[];
       setMessages(messagesData);
@@ -81,6 +82,13 @@ export function useMessages(roomId: string | undefined) {
     return () => unsubscribe();
   }, [roomId, user]);
 
+  return { messages, loading };
+}
+
+export function useSendMessage(roomId: string | undefined) {
+  const { user } = useAuth();
+
+  // Fix 2: Separate sendMessage logic to avoid re-subscribing to messages in input component
   const sendMessage = useCallback(
     async (text: string) => {
       if (!roomId || !user || !text.trim()) return;
@@ -88,8 +96,11 @@ export function useMessages(roomId: string | undefined) {
       const messagesRef = collection(db, "chatRooms", roomId, "messages");
       const roomRef = doc(db, "chatRooms", roomId);
 
+      // Fix 3: Let Firestore generate the ID, or use it consistently if we need optimistic UI later.
+      // For now, we align with the snapshot listener which uses doc.id.
+      // We don't manually add _id to the doc data unless strictly needed by type, 
+      // but usually doc.id is metadata.
       const messageData = {
-        _id: crypto.randomUUID(),
         text: text.trim(),
         createdAt: serverTimestamp(),
         user: {
@@ -112,5 +123,5 @@ export function useMessages(roomId: string | undefined) {
     [roomId, user]
   );
 
-  return { messages, loading, sendMessage };
+  return { sendMessage };
 }

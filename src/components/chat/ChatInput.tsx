@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useMessages } from "@/hooks/useChat";
+import { useSendMessage } from "@/hooks/useChat";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Smile } from "lucide-react";
@@ -11,7 +11,7 @@ interface ChatInputProps {
 export default function ChatInput({ roomId }: ChatInputProps) {
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
-  const { sendMessage } = useMessages(roomId);
+  const { sendMessage } = useSendMessage(roomId);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSend = async () => {
