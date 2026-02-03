@@ -213,6 +213,11 @@ export function useRTDBChats() {
             return;
         }
 
+        // Request notification permission
+        if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+        }
+
         const userChatsRef = ref(rtdb, `userChats/${user.uid}`);
 
         const unsubscribe = onValue(userChatsRef, async (snapshot) => {
@@ -222,7 +227,29 @@ export function useRTDBChats() {
                 return;
             }
 
-            const chatIds = Object.keys(snapshot.val());
+            const data = snapshot.val();
+            const chatIds = Object.keys(data);
+
+            // Notification Logic
+            if (!loading) { // Avoid notifications on initial load
+                chatIds.forEach(chatId => {
+                    const chatData = data[chatId];
+                    const prevChat = chats.find(c => c.id === chatId);
+                    // This is a simplified check. Ideally we'd compare unreadCount but we don't store it in 'chats' state directly yet (chats comes from full fetch).
+                    // However, we are refetching chats here.
+                    // Let's rely on Unread Count change if we can track it.
+                    // The 'chats' state is built from 'chats' collection, but 'userChats' has unread info.
+                    // Let's iterate and check if this update brings a new message.
+                    // A simpler way: we can check 'onChildChanged' for userChats separately if we want precision.
+                    // But here, let's just accept that if we are re-rendering, we might miss the diff.
+                    // BETTER APPROACH: Add a separate listener for notifications or rely on 'onChildChanged'
+                });
+            }
+
+            // ... (rest of the fetching logic) ... 
+            // Actually, let's inject a separate listener for notifications to be clean.
+            // See the next block replacement.
+
             const chatPromises = chatIds.map(async (chatId) => {
                 const chatRef = ref(rtdb, `chats/${chatId}`);
                 const chatSnapshot = await get(chatRef);
@@ -242,7 +269,25 @@ export function useRTDBChats() {
             setLoading(false);
         });
 
-        return () => off(userChatsRef);
+        // Separate listener for notifications
+        const notificationsRef = ref(rtdb, `userChats/${user.uid}`);
+        const notifUnsubscribe = onChildChanged(notificationsRef, (snapshot) => {
+            const val = snapshot.val();
+            if (val.unreadCount > 0) {
+                // Trigger notification
+                if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+                    new Notification("Titan", {
+                        body: "You have a new message",
+                        icon: "/ygu.ico" // using the favicon we renamed earlier? or standard one
+                    });
+                }
+            }
+        });
+
+        return () => {
+            off(userChatsRef);
+            off(notificationsRef);
+        };
     }, [user]);
 
     const createChat = useCallback(async (

@@ -13,6 +13,7 @@ import { Menu, MessageCircle, Phone, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Settings from "@/pages/Settings";
+import { useSwipeable } from "react-swipeable";
 
 interface ChatLayoutRTDBProps {
     initialChatId?: string;
@@ -66,14 +67,23 @@ export default function ChatLayoutRTDB({ initialChatId }: ChatLayoutRTDBProps) {
         }
     };
 
+    const handlers = useSwipeable({
+        onSwipedRight: () => {
+            if (window.innerWidth < 768) { // Only on mobile
+                handleBackToList();
+            }
+        },
+        trackMouse: false
+    });
+
     return (
-        <div className="flex h-screen bg-background overflow-hidden">
+        <div className="flex h-screen bg-background overflow-hidden relative">
             {/* Call UI Overlay */}
             {callState.status !== "idle" && <CallUI />}
 
             {/* Desktop Layout or Mobile List View */}
             <div className={cn(
-                "flex-1 flex overflow-hidden",
+                "flex-1 flex overflow-hidden w-full md:w-auto",
                 selectedChatId ? "hidden md:flex" : "flex"
             )}>
                 {/* Sidebar - Unified for desktop/mobile list */}
@@ -113,10 +123,13 @@ export default function ChatLayoutRTDB({ initialChatId }: ChatLayoutRTDBProps) {
 
             {/* Active Chat Window - Mobile or Desktop overlay */}
             {selectedChatId && (
-                <div className={cn(
-                    "fixed inset-0 z-50 md:relative md:inset-auto md:flex-1 flex flex-col bg-background transform transition-transform duration-300 md:transform-none",
-                    selectedChatId ? "translate-x-0" : "translate-x-full md:translate-x-0"
-                )}>
+                <div
+                    {...handlers}
+                    className={cn(
+                        "fixed inset-0 z-50 md:relative md:inset-auto md:flex-1 flex flex-col bg-background transform transition-transform duration-300 md:transform-none h-full outline-none",
+                        selectedChatId ? "translate-x-0" : "translate-x-full md:translate-x-0"
+                    )}
+                >
                     {selectedChat ? (
                         <>
                             <ChatHeaderRTDB

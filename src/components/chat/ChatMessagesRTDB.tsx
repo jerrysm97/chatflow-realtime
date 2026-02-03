@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Reply, Star, Trash2, Copy, Forward, Check, CheckCheck, FileIcon, Download, Smile } from "lucide-react";
 import { toast } from "sonner";
+import { useSwipeable } from "react-swipeable";
 
 interface ChatMessagesRTDBProps {
     roomId: string;
@@ -235,10 +236,19 @@ function MessageBubble({
         }
     };
 
+    const handlers = useSwipeable({
+        onSwipedLeft: () => {
+            if (window.innerWidth < 768) { // Only on mobile
+                handleReply();
+            }
+        },
+        trackMouse: false
+    });
+
     return (
         <ContextMenu>
             <ContextMenuTrigger>
-                <div className={cn("flex gap-2 items-end", isOwn ? "justify-end" : "justify-start", "group relative mb-1")}>
+                <div {...handlers} className={cn("flex gap-2 items-end", isOwn ? "justify-end" : "justify-start", "group relative mb-1 touch-pan-y")}>
                     {!isOwn && (
                         <div className="w-8 shrink-0">
                             {showAvatar && (
