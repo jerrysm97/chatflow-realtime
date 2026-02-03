@@ -11,7 +11,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, Phone, Video, MoreVertical, Search, Users, Trash2, VolumeX, Pin, Info } from "lucide-react";
+import { Menu, Phone, Video, MoreVertical, Search, Users, Trash2, VolumeX, Pin, Info, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChatHeaderRTDBProps {
@@ -19,6 +19,7 @@ interface ChatHeaderRTDBProps {
     currentUserId?: string;
     onMenuClick?: () => void;
     onCallStart?: (type: "audio" | "video") => void;
+    onBack?: () => void;
 }
 
 function getInitials(name: string): string {
@@ -48,6 +49,7 @@ export default function ChatHeaderRTDB({
     currentUserId,
     onMenuClick,
     onCallStart,
+    onBack,
 }: ChatHeaderRTDBProps) {
     const [otherUserStatus, setOtherUserStatus] = useState<{ isOnline: boolean; lastSeen: number } | null>(null);
 
@@ -102,10 +104,16 @@ export default function ChatHeaderRTDB({
 
     return (
         <div className="px-4 py-3 bg-chat-header border-b flex items-center gap-3">
-            {/* Mobile Menu Button */}
-            <Button variant="ghost" size="icon" className="md:hidden shrink-0" onClick={onMenuClick}>
-                <Menu className="h-5 w-5" />
-            </Button>
+            {/* Mobile Back/Menu Button */}
+            {onBack ? (
+                <Button variant="ghost" size="icon" className="md:hidden shrink-0" onClick={onBack}>
+                    <ArrowLeft className="h-5 w-5" />
+                </Button>
+            ) : (
+                <Button variant="ghost" size="icon" className="md:hidden shrink-0" onClick={onMenuClick}>
+                    <Menu className="h-5 w-5" />
+                </Button>
+            )}
 
             {/* Avatar */}
             <Avatar className="h-10 w-10 shrink-0">

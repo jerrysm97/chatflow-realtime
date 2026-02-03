@@ -154,9 +154,13 @@ export default function ChatMessagesRTDB({ roomId, onReply }: ChatMessagesRTDBPr
             <div className="p-4 space-y-2">
                 {messages.map((message, index) => {
                     const isOwn = message.senderId === user?.uid;
-                    const showAvatar =
-                        !isOwn &&
-                        (index === 0 || messages[index - 1]?.senderId !== message.senderId);
+                    const isFirstInBlock =
+                        index === 0 || messages[index - 1]?.senderId !== message.senderId;
+                    const isLastInBlock =
+                        index === messages.length - 1 || messages[index + 1]?.senderId !== message.senderId;
+
+                    const showAvatar = !isOwn && isFirstInBlock;
+                    const showTail = isLastInBlock; // Show tail on the last message of a block
 
                     return (
                         <MessageBubble
@@ -164,6 +168,7 @@ export default function ChatMessagesRTDB({ roomId, onReply }: ChatMessagesRTDBPr
                             message={{ ...message, text: renderMessageText(message.text) }}
                             isOwn={isOwn}
                             showAvatar={showAvatar}
+                            showTail={showTail}
                             roomId={roomId}
                             onReply={onReply}
                         />
@@ -192,12 +197,14 @@ function MessageBubble({
     message,
     isOwn,
     showAvatar,
+    showTail,
     roomId,
     onReply,
 }: {
     message: RTDBMessage;
     isOwn: boolean;
     showAvatar: boolean;
+    showTail: boolean;
     roomId: string;
     onReply?: (msg: { id: string; text: string; senderName: string }) => void;
 }) {
@@ -231,9 +238,9 @@ function MessageBubble({
     return (
         <ContextMenu>
             <ContextMenuTrigger>
-                <div className={cn("flex gap-2 items-end", isOwn ? "justify-end" : "justify-start", "group relative")}>
+                <div className={cn("flex gap-2 items-end", isOwn ? "justify-end" : "justify-start", "group relative mb-1")}>
                     {!isOwn && (
-                        <div className="w-8">
+                        <div className="w-8 shrink-0">
                             {showAvatar && (
                                 <Avatar className="h-8 w-8">
                                     <AvatarFallback className="text-xs bg-muted">
@@ -244,27 +251,13 @@ function MessageBubble({
                         </div>
                     )}
 
-                    {/* Reaction Button (visible on hover) */}
-                    <button
-                        className={cn(
-                            "absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-full bg-background border shadow-sm z-10",
-                            isOwn ? "left-0 -translate-x-full mr-2" : "right-0 translate-x-full ml-2"
-                        )}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            // Show emoji picker logic would go here
-                            handleReaction("👍");
-                        }}
-                    >
-                        <Smile className="h-4 w-4 text-muted-foreground" />
-                    </button>
-
                     <div
                         className={cn(
-                            "max-w-[70%] px-4 py-2 rounded-2xl shadow-sm relative",
+                            "max-w-[85%] sm:max-w-[70%] px-3 py-2 rounded-xl shadow-sm relative",
                             isOwn
-                                ? "bg-chat-bubble-sent text-white rounded-br-md"
-                                : "bg-chat-bubble-received rounded-bl-md"
+                                ? "bg-chat-bubble-sent text-white rounded-br-none"
+                                : "bg-chat-bubble-received rounded-bl-none",
+                            showTail && (isOwn ? "bubble-tail-sent" : "bubble-tail-received")
                         )}
                     >
                         {!isOwn && showAvatar && (

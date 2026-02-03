@@ -47,7 +47,7 @@ const defaultSettings: UserSettings = {
     },
 };
 
-export default function Settings() {
+export default function Settings({ onBack }: { onBack?: () => void }) {
     const { user, signOut } = useAuth();
     const { userProfile } = useUserProfile();
     const navigate = useNavigate();
@@ -157,7 +157,7 @@ export default function Settings() {
             <div className="max-w-2xl mx-auto">
                 {/* Header */}
                 <div className="flex items-center gap-4 mb-6">
-                    <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
+                    <Button variant="ghost" size="icon" onClick={() => onBack ? onBack() : navigate("/")}>
                         <ArrowLeft className="h-5 w-5" />
                     </Button>
                     <h1 className="text-2xl font-bold">Settings</h1>

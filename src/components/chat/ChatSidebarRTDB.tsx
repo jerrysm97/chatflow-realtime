@@ -33,6 +33,7 @@ interface ChatSidebarRTDBProps {
     selectedChatId?: string;
     onSelectChat: (chatId: string) => void;
     onMobileClose?: () => void;
+    filterType?: "direct" | "group";
 }
 
 function formatTime(timestamp: number | undefined): string {
@@ -66,6 +67,7 @@ export default function ChatSidebarRTDB({
     selectedChatId,
     onSelectChat,
     onMobileClose,
+    filterType,
 }: ChatSidebarRTDBProps) {
     const { chats, loading, createChat } = useRTDBChats();
     const { results, searching, searchUsers, clearResults } = useRTDBUserSearch();
@@ -81,6 +83,7 @@ export default function ChatSidebarRTDB({
     const { userProfile } = useUserProfile();
 
     const filteredChats = chats.filter((chat) => {
+        if (filterType && chat.type !== filterType) return false;
         const chatName = getChatDisplayName(chat, user?.uid);
         return chatName.toLowerCase().includes(searchQuery.toLowerCase());
     });
@@ -143,7 +146,7 @@ export default function ChatSidebarRTDB({
                             {getInitials(user?.displayName || user?.email || "U")}
                         </AvatarFallback>
                     </Avatar>
-                    <div className="hidden sm:block">
+                    <div className="">
                         <h1 className="font-bold text-lg tracking-tight">Titan</h1>
                     </div>
                 </div>
