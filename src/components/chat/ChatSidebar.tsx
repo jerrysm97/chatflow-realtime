@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useChatRooms } from "@/hooks/useChat";
+import { useChatRooms, useUserSearch } from "@/hooks/useChat";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -13,8 +13,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { MessageCircle, Plus, Search, LogOut } from "lucide-react";
-import { ChatRoom } from "@/types/chat";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MessageCircle, Plus, Search, LogOut, User, Users, Loader2 } from "lucide-react";
+import { ChatRoom, AuthUser } from "@/types/chat";
 import { Timestamp } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 
@@ -57,21 +58,25 @@ export default function ChatSidebar({
   onMobileClose,
 }: ChatSidebarProps) {
   const { rooms, loading, createRoom } = useChatRooms();
+  const { searchUsers, searchResults, searching, createDirectChat, clearSearch } = useUserSearch();
   const { user, signOut } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [newRoomName, setNewRoomName] = useState("");
+  const [userSearchQuery, setUserSearchQuery] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [activeTab, setActiveTab] = useState<"group" | "direct">("direct");
 
-  const filteredRooms = rooms.filter((room) =>
-    room.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredRooms = rooms.filter((room) => {
+    const roomName = getRoomDisplayName(room, user?.uid);
+    return roomName.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   const handleCreateRoom = async () => {
     if (!newRoomName.trim()) return;
     setCreating(true);
     try {
-      const roomId = await createRoom(newRoomName.trim());
+      const roomId = await createRoom(newRoomName.trim(), 'group');
       if (roomId) {
         onSelectRoom(roomId);
         setNewRoomName("");
@@ -83,9 +88,40 @@ export default function ChatSidebar({
     }
   };
 
+  const handleUserSearch = () => {
+    if (userSearchQuery.trim()) {
+      searchUsers(userSearchQuery.trim());
+    }
+  };
+
+  const handleCreateDirectChat = async (targetUser: AuthUser) => {
+    setCreating(true);
+    try {
+      const roomId = await createDirectChat(targetUser);
+      if (roomId) {
+        onSelectRoom(roomId);
+        setUserSearchQuery("");
+        clearSearch();
+        setDialogOpen(false);
+        onMobileClose?.();
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
   const handleSelectRoom = (roomId: string) => {
     onSelectRoom(roomId);
     onMobileClose?.();
+  };
+
+  const handleDialogClose = (open: boolean) => {
+    setDialogOpen(open);
+    if (!open) {
+      setUserSearchQuery("");
+      clearSearch();
+      setNewRoomName("");
+    }
   };
 
   return (
@@ -105,31 +141,91 @@ export default function ChatSidebar({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Plus className="h-5 w-5" />
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Create New Chat Room</DialogTitle>
+                <DialogTitle>New Chat</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 pt-4">
-                <Input
-                  placeholder="Room name"
-                  value={newRoomName}
-                  onChange={(e) => setNewRoomName(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleCreateRoom()}
-                />
-                <Button
-                  onClick={handleCreateRoom}
-                  className="w-full"
-                  disabled={!newRoomName.trim() || creating}
-                >
-                  {creating ? "Creating..." : "Create Room"}
-                </Button>
-              </div>
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "group" | "direct")} className="pt-4">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="direct" className="gap-2">
+                    <User className="h-4 w-4" />
+                    Direct Message
+                  </TabsTrigger>
+                  <TabsTrigger value="group" className="gap-2">
+                    <Users className="h-4 w-4" />
+                    Group Chat
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="direct" className="space-y-4 pt-4">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Enter email address"
+                      value={userSearchQuery}
+                      onChange={(e) => setUserSearchQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleUserSearch()}
+                    />
+                    <Button onClick={handleUserSearch} disabled={searching || !userSearchQuery.trim()}>
+                      {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                    </Button>
+                  </div>
+
+                  {searchResults.length > 0 && (
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {searchResults.map((result) => (
+                        <button
+                          key={result.uid}
+                          onClick={() => handleCreateDirectChat(result)}
+                          disabled={creating}
+                          className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors text-left"
+                        >
+                          <Avatar className="h-10 w-10">
+                            <AvatarFallback>
+                              {getInitials(result.displayName || result.email || "U")}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">
+                              {result.displayName || result.email?.split("@")[0]}
+                            </p>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {result.email}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {userSearchQuery && searchResults.length === 0 && !searching && (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No users found with that email
+                    </p>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="group" className="space-y-4 pt-4">
+                  <Input
+                    placeholder="Group name"
+                    value={newRoomName}
+                    onChange={(e) => setNewRoomName(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleCreateRoom()}
+                  />
+                  <Button
+                    onClick={handleCreateRoom}
+                    className="w-full"
+                    disabled={!newRoomName.trim() || creating}
+                  >
+                    {creating ? "Creating..." : "Create Group"}
+                  </Button>
+                </TabsContent>
+              </Tabs>
             </DialogContent>
           </Dialog>
           <Button
@@ -148,7 +244,7 @@ export default function ChatSidebar({
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search or start new chat"
+            placeholder="Search conversations"
             className="pl-10 bg-background border-0"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -177,7 +273,7 @@ export default function ChatSidebar({
             </div>
             <h3 className="font-medium text-lg mb-1">No conversations yet</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Create a new chat room to get started
+              Start a new chat to get connected
             </p>
             <Button onClick={() => setDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
@@ -190,6 +286,7 @@ export default function ChatSidebar({
               <RoomItem
                 key={room.id}
                 room={room}
+                currentUserId={user?.uid}
                 isSelected={room.id === selectedRoomId}
                 onClick={() => handleSelectRoom(room.id)}
               />
@@ -201,15 +298,31 @@ export default function ChatSidebar({
   );
 }
 
+function getRoomDisplayName(room: ChatRoom, currentUserId?: string): string {
+  if (room.type === 'direct' && room.participantNames && currentUserId) {
+    // Find the other participant's name
+    const otherParticipantId = room.participants.find(id => id !== currentUserId);
+    if (otherParticipantId && room.participantNames[otherParticipantId]) {
+      return room.participantNames[otherParticipantId];
+    }
+  }
+  return room.name || "Chat";
+}
+
 function RoomItem({
   room,
+  currentUserId,
   isSelected,
   onClick,
 }: {
   room: ChatRoom;
+  currentUserId?: string;
   isSelected: boolean;
   onClick: () => void;
 }) {
+  const displayName = getRoomDisplayName(room, currentUserId);
+  const isDirect = room.type === 'direct';
+
   return (
     <button
       onClick={onClick}
@@ -219,13 +332,19 @@ function RoomItem({
       )}
     >
       <Avatar className="h-12 w-12">
-        <AvatarFallback className="bg-chat-avatar text-primary-foreground">
-          {getInitials(room.name)}
+        <AvatarFallback className={cn(
+          "text-primary-foreground",
+          isDirect ? "bg-primary" : "bg-chat-avatar"
+        )}>
+          {getInitials(displayName)}
         </AvatarFallback>
       </Avatar>
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between">
-          <p className="font-medium truncate">{room.name}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="font-medium truncate">{displayName}</p>
+            {!isDirect && <Users className="h-3 w-3 text-muted-foreground shrink-0" />}
+          </div>
           {room.lastMessage?.createdAt && (
             <span className="text-xs text-muted-foreground">
               {formatTime(room.lastMessage.createdAt)}
@@ -241,3 +360,4 @@ function RoomItem({
     </button>
   );
 }
+

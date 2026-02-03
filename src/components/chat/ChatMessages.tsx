@@ -4,9 +4,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Message } from "@/types/chat";
+import { Message, Attachment } from "@/types/chat";
 import { Timestamp } from "firebase/firestore";
 import { cn } from "@/lib/utils";
+import { FileIcon, Download, Play } from "lucide-react";
 
 interface ChatMessagesProps {
   roomId: string;
@@ -16,6 +17,13 @@ function formatMessageTime(timestamp: Timestamp | Date | null): string {
   if (!timestamp) return "Sending...";
   const date = timestamp instanceof Timestamp ? timestamp.toDate() : timestamp;
   return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
 }
 
 function getInitials(name: string): string {
@@ -130,6 +138,61 @@ export default function ChatMessages({ roomId }: ChatMessagesProps) {
   );
 }
 
+function AttachmentRenderer({ attachment, isOwn }: { attachment: Attachment; isOwn: boolean }) {
+  if (attachment.type === 'image') {
+    return (
+      <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="block">
+        <img
+          src={attachment.url}
+          alt={attachment.name}
+          className="max-w-full max-h-64 rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+        />
+      </a>
+    );
+  }
+
+  if (attachment.type === 'video') {
+    return (
+      <div className="relative max-w-full">
+        <video
+          src={attachment.url}
+          controls
+          className="max-w-full max-h-64 rounded-lg"
+        />
+      </div>
+    );
+  }
+
+  // Generic file
+  return (
+    <a
+      href={attachment.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn(
+        "flex items-center gap-3 p-3 rounded-lg transition-colors",
+        isOwn ? "bg-white/10 hover:bg-white/20" : "bg-muted hover:bg-muted/80"
+      )}
+    >
+      <div className={cn(
+        "h-10 w-10 rounded-lg flex items-center justify-center",
+        isOwn ? "bg-white/20" : "bg-primary/10"
+      )}>
+        <FileIcon className={cn("h-5 w-5", isOwn ? "text-white" : "text-primary")} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={cn("text-sm font-medium truncate", isOwn ? "text-white" : "")}>
+          {attachment.name}
+        </p>
+        <p className={cn("text-xs", isOwn ? "text-white/70" : "text-muted-foreground")}>
+          {formatFileSize(attachment.size)}
+        </p>
+      </div>
+      <Download className={cn("h-4 w-4 shrink-0", isOwn ? "text-white/70" : "text-muted-foreground")} />
+    </a>
+  );
+}
+
 function MessageBubble({
   message,
   isOwn,
@@ -139,6 +202,9 @@ function MessageBubble({
   isOwn: boolean;
   showAvatar: boolean;
 }) {
+  const hasAttachments = message.attachments && message.attachments.length > 0;
+  const hasText = message.text && message.text.trim().length > 0;
+
   return (
     <div
       className={cn(
@@ -151,7 +217,7 @@ function MessageBubble({
           {showAvatar && (
             <Avatar className="h-8 w-8">
               <AvatarFallback className="text-xs bg-muted">
-                {getInitials(message.user.name)}
+                {getInitials(message.user?.name || "U")}
               </AvatarFallback>
             </Avatar>
           )}
@@ -167,19 +233,31 @@ function MessageBubble({
       >
         {!isOwn && showAvatar && (
           <p className="text-xs font-medium text-primary mb-1">
-            {message.user.name}
+            {message.user?.name || "Unknown"}
           </p>
         )}
-        <p className="break-words">{message.text}</p>
+
+        {/* Render attachments */}
+        {hasAttachments && (
+          <div className="space-y-2 mb-2">
+            {message.attachments!.map((attachment, i) => (
+              <AttachmentRenderer key={i} attachment={attachment} isOwn={isOwn} />
+            ))}
+          </div>
+        )}
+
+        {hasText && <p className="break-words">{message.text}</p>}
+
         <p
           className={cn(
             "text-xs mt-1 text-right",
             isOwn ? "text-white/70" : "text-muted-foreground"
           )}
         >
-          {message.createdAt && formatMessageTime(message.createdAt)}
+          {formatMessageTime(message.createdAt)}
         </p>
       </div>
     </div>
   );
 }
+

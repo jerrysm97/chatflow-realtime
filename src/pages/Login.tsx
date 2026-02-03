@@ -101,6 +101,11 @@ export default function Login() {
               Sign up
             </Link>
           </div>
+          <div className="mt-4 text-center">
+            <Link to="/phone-auth" className="text-sm text-muted-foreground hover:text-primary">
+              Use phone number instead
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>

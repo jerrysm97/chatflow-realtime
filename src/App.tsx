@@ -4,9 +4,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { CallProvider } from "@/contexts/CallContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
+import PhoneAuth from "@/pages/PhoneAuth";
 import Chat from "@/pages/Chat";
 import NotFound from "@/pages/NotFound";
 import { Loader2 } from "lucide-react";
@@ -52,6 +54,14 @@ function AppRoutes() {
           </AuthRoute>
         }
       />
+      <Route
+        path="/phone-auth"
+        element={
+          <AuthRoute>
+            <PhoneAuth />
+          </AuthRoute>
+        }
+      />
 
       {/* Protected routes */}
       <Route element={<ProtectedRoute />}>
@@ -68,13 +78,15 @@ function AppRoutes() {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </TooltipProvider>
+      <CallProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </TooltipProvider>
+      </CallProvider>
     </AuthProvider>
   </QueryClientProvider>
 );
