@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useGroupManagement } from "@/hooks/useGroupManagement";
-import { RTDBUser, RTDBChat } from "@/hooks/useRealtimeDB";
+import { RTDBUser, RTDBChat, useRTDBUserSearch } from "@/hooks/useRealtimeDB";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,7 @@ import {
     Edit2,
     Check,
     X,
+    Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -76,9 +77,14 @@ export default function GroupInfoPanel({ group, trigger }: GroupInfoPanelProps) 
         leaveGroup,
         deleteGroup,
         getGroupMembers,
+        addParticipant,
     } = useGroupManagement(group.id);
 
+    // Search for new members
+    const { results, searching, searchUsers, clearResults } = useRTDBUserSearch();
     const [members, setMembers] = useState<RTDBUser[]>([]);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [addingMember, setAddingMember] = useState(false);
     const [loadingMembers, setLoadingMembers] = useState(true);
     const [isCurrentUserAdmin, setIsCurrentUserAdmin] = useState(false);
     const [editingName, setEditingName] = useState(false);
@@ -261,7 +267,71 @@ export default function GroupInfoPanel({ group, trigger }: GroupInfoPanelProps) 
                             )}
                         </div>
 
-                        {/* Members */}
+                        {/* Add Member Section (Admin Only) */}
+                        {isCurrentUserAdmin && (
+                            <div className="space-y-3 pt-4 border-t">
+                                <h3 className="font-medium flex items-center gap-2">
+                                    <UserPlus className="h-4 w-4" />
+                                    Add Members
+                                </h3>
+                                <div className="flex gap-2">
+                                    <Input
+                                        placeholder="Search by ID or Email"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onKeyDown={(e) => e.key === "Enter" && searchQuery.trim() && searchUsers(searchQuery)}
+                                    />
+                                    <Button
+                                        size="icon"
+                                        onClick={() => searchQuery.trim() && searchUsers(searchQuery)}
+                                        disabled={searching || !searchQuery.trim()}
+                                    >
+                                        {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                                    </Button>
+                                </div>
+
+                                {results.length > 0 && (
+                                    <div className="border rounded-md divide-y max-h-40 overflow-y-auto">
+                                        {results.map((result) => {
+                                            const isAlreadyMember = members.some(m => m.uid === result.uid);
+                                            return (
+                                                <div key={result.uid} className="flex items-center justify-between p-2 hover:bg-muted/50">
+                                                    <div className="flex items-center gap-2 overflow-hidden">
+                                                        <Avatar className="h-8 w-8">
+                                                            <AvatarImage src={result.photoURL || ""} />
+                                                            <AvatarFallback>{getInitials(result.displayName || "U")}</AvatarFallback>
+                                                        </Avatar>
+                                                        <div className="min-w-0">
+                                                            <p className="text-sm font-medium truncate">{result.displayName}</p>
+                                                            <p className="text-xs text-muted-foreground truncate">{result.email}</p>
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        variant={isAlreadyMember ? "ghost" : "default"}
+                                                        disabled={isAlreadyMember || addingMember}
+                                                        onClick={async () => {
+                                                            if (isAlreadyMember) return;
+                                                            setAddingMember(true);
+                                                            await addParticipant(result.uid, result.displayName || "User");
+                                                            setMembers(prev => [...prev, result]);
+                                                            toast.success(`${result.displayName} added`);
+                                                            setAddingMember(false);
+                                                            clearResults();
+                                                            setSearchQuery("");
+                                                        }}
+                                                    >
+                                                        {isAlreadyMember ? "Joined" : "Add"}
+                                                    </Button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Members List */}
                         <div className="space-y-3">
                             <h3 className="font-medium">{members.length} Members</h3>
 

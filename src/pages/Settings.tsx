@@ -4,6 +4,7 @@ import { ref, update, onValue, off } from "firebase/database";
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 import { auth, rtdb } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserProfile } from "@/hooks/useRealtimeDB";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,6 +49,7 @@ const defaultSettings: UserSettings = {
 
 export default function Settings() {
     const { user, signOut } = useAuth();
+    const { userProfile } = useUserProfile();
     const navigate = useNavigate();
     const { toast } = useToast();
 
@@ -162,6 +164,47 @@ export default function Settings() {
                 </div>
 
                 <div className="space-y-6">
+                    {/* Profile Section */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <User className="h-5 w-5" />
+                                Profile
+                            </CardTitle>
+                            <CardDescription>Manage your public profile</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="flex flex-col items-center justify-center mb-4 gap-2">
+                                <div className="h-24 w-24 rounded-full overflow-hidden bg-muted border-2 border-primary/20">
+                                    <img
+                                        src={settings.privacy.userProfile?.photoURL || user?.photoURL || ""}
+                                        alt="Profile"
+                                        className="h-full w-full object-cover"
+                                        onError={(e) => e.currentTarget.style.display = 'none'}
+                                    />
+                                </div>
+                                <div className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                                    ID: <span className="font-mono select-all">{userProfile?.userId}</span>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="displayName">Display Name</Label>
+                                <Input
+                                    id="displayName"
+                                    value={userProfile?.displayName || user?.displayName || ""}
+                                    onChange={(e) => {
+                                        // In a real app we'd update local state then save, 
+                                        // but here we might need a separate 'profile' state or modify the 'settings' object logic if we want to save it strictly via 'save settings'
+                                        // For now, let's assume valid 'user' object updates or we handle it in handleSaveSettings
+                                    }}
+                                    placeholder="Your Name"
+                                    disabled={true} // For now disabled until we implement profile update logic properly in handleSaveSettings
+                                />
+                                <p className="text-xs text-muted-foreground">Name updates coming in next patch</p>
+                            </div>
+                        </CardContent>
+                    </Card>
                     {/* Privacy Section */}
                     <Card>
                         <CardHeader>

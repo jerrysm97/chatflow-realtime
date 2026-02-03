@@ -137,18 +137,20 @@ export default function ChatSidebarRTDB({
             {/* Header */}
             <div className="p-4 bg-chat-header border-b flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
+                    <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => window.location.href = '/settings'}>
                         <AvatarImage src={user?.photoURL || ""} />
                         <AvatarFallback className="bg-primary text-primary-foreground">
                             {getInitials(user?.displayName || user?.email || "U")}
                         </AvatarFallback>
                     </Avatar>
                     <div className="hidden sm:block">
-                        <p className="font-medium text-sm">{user?.displayName || user?.email?.split("@")[0]}</p>
-                        <p className="text-xs text-muted-foreground">ID: <span className="font-mono text-primary">{userProfile?.userId || "..."}</span></p>
+                        <h1 className="font-bold text-lg tracking-tight">Titan</h1>
                     </div>
                 </div>
                 <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" className="rounded-full" title="Settings" onClick={() => window.location.href = '/settings'}>
+                        <Settings className="h-5 w-5" />
+                    </Button>
                     <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
                         <DialogTrigger asChild>
                             <Button variant="ghost" size="icon" className="rounded-full">
