@@ -77,17 +77,17 @@ export default function ChatLayoutRTDB({ initialChatId }: ChatLayoutRTDBProps) {
     });
 
     return (
-        <div className="flex h-screen bg-background overflow-hidden relative">
+        <div className="flex h-[100dvh] bg-background overflow-hidden relative">
             {/* Call UI Overlay */}
             {callState.status !== "idle" && <CallUI />}
 
             {/* Desktop Layout or Mobile List View */}
             <div className={cn(
-                "flex-1 flex overflow-hidden w-full md:w-auto",
+                "flex-1 flex overflow-hidden w-full md:w-auto h-full",
                 selectedChatId ? "hidden md:flex" : "flex"
             )}>
                 {/* Sidebar - Unified for desktop/mobile list */}
-                <div className="w-full md:w-80 lg:w-96 border-r flex flex-col relative pb-16 md:pb-0">
+                <div className="w-full md:w-80 lg:w-96 border-r flex flex-col relative pb-16 md:pb-0 h-full">
                     {activeTab === "settings" ? (
                         <Settings onBack={() => setActiveTab("chats")} />
                     ) : activeTab === "calls" ? (
@@ -110,7 +110,7 @@ export default function ChatLayoutRTDB({ initialChatId }: ChatLayoutRTDBProps) {
                 </div>
 
                 {/* Main Chat Area (Placeholder for desktop when no chat selected) */}
-                <div className="hidden md:flex flex-1 flex-col min-w-0 bg-chat-background items-center justify-center relative">
+                <div className="hidden md:flex flex-1 flex-col min-w-0 bg-chat-background items-center justify-center relative h-full">
                     <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
                         <MessageCircle className="w-10 h-10 text-muted-foreground" />
                     </div>
@@ -126,7 +126,7 @@ export default function ChatLayoutRTDB({ initialChatId }: ChatLayoutRTDBProps) {
                 <div
                     {...handlers}
                     className={cn(
-                        "fixed inset-0 z-50 md:relative md:inset-auto md:flex-1 flex flex-col bg-background transform transition-transform duration-300 md:transform-none h-full outline-none",
+                        "fixed inset-0 z-50 md:relative md:inset-auto md:flex-1 flex flex-col bg-background transform transition-transform duration-300 md:transform-none h-[100dvh] md:h-full outline-none touch-pan-y",
                         selectedChatId ? "translate-x-0" : "translate-x-full md:translate-x-0"
                     )}
                 >
