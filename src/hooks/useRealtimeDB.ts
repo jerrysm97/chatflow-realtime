@@ -20,6 +20,7 @@ import { rtdb, storage } from "@/lib/firebase";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "@/contexts/AuthContext";
 import { encryptMessage, decryptMessage } from "@/lib/crypto";
+import { compressImage } from "@/lib/mediaUtils";
 
 // Generate a unique 6-digit user ID using timestamp-based approach
 function generateUniqueUserId(): string {
@@ -81,6 +82,7 @@ export interface RTDBChat {
     admins?: Record<string, boolean>;
     description?: string;
     unreadCount?: number;
+    lastMessageStatus?: "sending" | "sent" | "delivered" | "read";
 }
 
 export interface TypingStatus {
@@ -454,10 +456,14 @@ export function useRTDBSendMessage(chatId: string | undefined) {
             let msgType: RTDBMessage["type"] = "text";
 
             if (files.length > 0) {
-                const file = files[0];
+                let file = files[0];
 
                 if (file.size > ONE_GB) {
                     throw new Error(`File "${file.name}" exceeds 1GB limit`);
+                }
+
+                if (file.type.startsWith("image/")) {
+                    file = await compressImage(file);
                 }
 
                 const fileRef = storageRef(storage, `chat/${chatId}/${Date.now()}_${file.name}`);
@@ -493,6 +499,7 @@ export function useRTDBSendMessage(chatId: string | undefined) {
                 lastMessage: encryptMessage(text.trim() || `Sent ${msgType}`),
                 lastMessageTime: Date.now(),
                 lastMessageSender: user.uid,
+                lastMessageStatus: "sent",
             });
 
             // Mark message as delivered for all other participants
@@ -644,7 +651,28 @@ export function useMessageActions(chatId: string | undefined) {
         }
     }, [chatId, user]);
 
-    return { deleteMessage, starMessage, addReaction, removeReaction, markAsRead };
+    const markAsDelivered = useCallback(async () => {
+        if (!chatId || !user) return;
+
+        const messagesRef = ref(rtdb, `messages/${chatId}`);
+        const snapshot = await get(messagesRef);
+
+        if (snapshot.exists()) {
+            const updates: Record<string, string> = {};
+            snapshot.forEach((child) => {
+                const msg = child.val();
+                if (msg.senderId !== user.uid && msg.status === "sent") {
+                    updates[`${child.key}/status`] = "delivered";
+                }
+            });
+
+            if (Object.keys(updates).length > 0) {
+                await update(messagesRef, updates);
+            }
+        }
+    }, [chatId, user]);
+
+    return { deleteMessage, starMessage, addReaction, removeReaction, markAsRead, markAsDelivered };
 }
 
 // Hook: User Search (by 6-digit ID, name, email, or phone)

@@ -53,16 +53,16 @@ function ChatItem({
         <button
             onClick={onClick}
             className={cn(
-                "w-full flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors text-left",
+                "w-full flex items-center gap-3 px-4 py-[10px] hover:bg-muted/50 transition-colors text-left border-b border-muted/30",
                 isSelected && "bg-muted"
             )}
         >
-            <div className="relative">
-                <Avatar className="h-12 w-12">
+            <div className="relative shrink-0">
+                <Avatar className="h-12 w-12 sm:h-[52px] sm:w-[52px]">
                     {chat.icon ? (
                         <AvatarImage src={chat.icon} />
                     ) : (
-                        <AvatarFallback className={cn("text-primary-foreground", isGroup ? "bg-chat-avatar" : "bg-primary")}>
+                        <AvatarFallback className={cn("text-primary-foreground", isGroup ? "bg-chat-avatar text-white" : "bg-primary text-white")}>
                             {getInitials(displayName)}
                         </AvatarFallback>
                     )}
@@ -73,33 +73,33 @@ function ChatItem({
                 */}
             </div>
 
-            <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                        <p className={cn("truncate text-base", hasUnread ? "font-bold text-foreground" : "font-medium text-foreground")}>
+            <div className="flex-1 min-w-0 pr-1">
+                <div className="flex items-center justify-between gap-1 mb-0.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        <p className={cn("truncate text-[16px]", hasUnread ? "font-semibold text-foreground" : "font-medium text-foreground")}>
                             {displayName}
                         </p>
-                        {isGroup && <Users className="h-3 w-3 text-muted-foreground shrink-0" />}
+                        {isGroup && <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
                     </div>
-                    <span className={cn("text-xs", hasUnread ? "text-green-500 font-medium" : "text-muted-foreground")}>
+                    <span className={cn("text-[12px] whitespace-nowrap", hasUnread ? "text-green-500 font-medium" : "text-muted-foreground")}>
                         {formatTime(chat.lastMessageTime)}
                     </span>
                 </div>
 
-                <div className="flex items-center justify-between mt-0.5">
-                    <div className="flex items-center gap-1 truncate max-w-[85%]">
-                        {isMeLastSender && (
-                            <CheckCheck className="h-4 w-4 text-blue-400 shrink-0" /> // Assuming read, or use gray for delivered
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 truncate w-full">
+                        {isMeLastSender && chat.lastMessage && (
+                            <CheckCheck className={cn("h-4 w-4 shrink-0", chat.lastMessageStatus === 'read' ? "text-blue-400" : "text-muted-foreground/60")} />
                         )}
                         {chat.lastMessage && (
-                            <p className={cn("text-sm truncate", hasUnread ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                            <p className={cn("text-[14px] truncate leading-tight", hasUnread ? "font-semibold text-foreground/90" : "text-muted-foreground")}>
                                 {chat.lastMessage}
                             </p>
                         )}
                     </div>
 
                     {hasUnread && (
-                        <div className="bg-green-500 text-white text-[10px] font-bold h-5 min-w-[1.25rem] px-1.5 rounded-full flex items-center justify-center">
+                        <div className="bg-green-500 text-white text-[11px] font-bold h-[20px] min-w-[20px] px-1.5 rounded-full flex items-center justify-center ml-2 shrink-0">
                             {unreadCount > 99 ? "99+" : unreadCount}
                         </div>
                     )}
@@ -121,17 +121,20 @@ function formatTime(timestamp: number | undefined): string {
     if (!timestamp) return "";
     const date = new Date(timestamp);
     const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-    if (days === 0) {
+    // Normalize to midnight for day comparisons
+    const dateAtMidnight = new Date(date).setHours(0, 0, 0, 0);
+    const nowAtMidnight = new Date(now).setHours(0, 0, 0, 0);
+    const diffDays = Math.round((nowAtMidnight - dateAtMidnight) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) {
         return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    } else if (days === 1) {
+    } else if (diffDays === 1) {
         return "Yesterday";
-    } else if (days < 7) {
-        return date.toLocaleDateString([], { weekday: "short" });
+    } else if (diffDays < 7) {
+        return date.toLocaleDateString([], { weekday: "long" });
     } else {
-        return date.toLocaleDateString([], { month: "short", day: "numeric" });
+        return date.toLocaleDateString([], { day: "2-digit", month: "2-digit", year: "numeric" }).replace(/\//g, '/');
     }
 }
 

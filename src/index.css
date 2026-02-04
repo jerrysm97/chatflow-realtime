@@ -19,16 +19,18 @@
     /* Primary Red: #C3161C -> HSL(358, 75%, 43%) */
     /* Secondary Yellow: #FFCD39 -> HSL(45, 100%, 61%) */
 
-    --primary: 358 75% 43%;
+    --primary: 175 87% 20%;
+    /* WhatsApp Teal #075E54 */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 45 100% 61%;
-    --secondary-foreground: 0 0% 13%;
+    --secondary: 160 52% 44%;
+    /* WhatsApp Green #25D366-ish */
+    --secondary-foreground: 0 0% 100%;
 
     --muted: 0 0% 96%;
     --muted-foreground: 0 0% 45%;
 
-    --accent: 358 75% 43%;
+    --accent: 175 87% 20%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
@@ -36,28 +38,37 @@
 
     --border: 0 0% 90%;
     --input: 0 0% 90%;
-    --ring: 358 75% 43%;
+    --ring: 175 87% 20%;
+    /* WhatsApp Teal-ish */
 
     --radius: 0.5rem;
 
-    /* Chat-specific colors */
-    --chat-header: 0 0% 100%;
+    /* WhatsApp-inspired colors */
+    --chat-header: 175 87% 20%;
+    /* WhatsApp Teal: #075E54 */
+    --chat-header-foreground: 0 0% 100%;
     --chat-input: 0 0% 100%;
-    --chat-background: 0 0% 96%;
-    /* Slightly warmer/neutral gray */
-    --chat-bubble-sent: 358 75% 43%;
+    --chat-background: 37 24% 91%;
+    /* WhatsApp Beige: #efeae2 */
+    --chat-bubble-sent: 94 75% 87%;
+    /* WhatsApp Light Green: #dcf8c6 */
+    --chat-bubble-sent-foreground: 0 0% 13%;
     --chat-bubble-received: 0 0% 100%;
-    --chat-avatar: 358 75% 43%;
-    --chat-pattern: 358 30% 95%;
+    --chat-bubble-received-foreground: 0 0% 13%;
+    --chat-avatar: 175 87% 20%;
+    --chat-pattern: 175 87% 15%;
 
-    --sidebar-background: 0 0% 100%;
+    --sidebar-background: 175 87% 2%;
+    /* Darker sidebar? Or keep it white like WhatsApp? */
+    /* Many WhatsApp clones use a white sidebar with a teal list header, or dark. */
+    /* Let's keep it white for standard look, but maybe updated. */
     --sidebar-foreground: 0 0% 13%;
-    --sidebar-primary: 358 75% 43%;
+    --sidebar-primary: 175 87% 20%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 96%;
     --sidebar-accent-foreground: 0 0% 13%;
     --sidebar-border: 0 0% 90%;
-    --sidebar-ring: 358 75% 43%;
+    --sidebar-ring: 175 87% 20%;
   }
 
   .dark {

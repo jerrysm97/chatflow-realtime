@@ -15,6 +15,9 @@ import { cn } from "@/lib/utils";
 import { Reply, Star, Trash2, Copy, Forward, Check, CheckCheck, FileIcon, Download, Smile } from "lucide-react";
 import { toast } from "sonner";
 import { useSwipeable } from "react-swipeable";
+import { motion } from "framer-motion";
+import AudioMessage from "./AudioMessage";
+import MediaLightbox from "./MediaLightbox";
 
 interface ChatMessagesRTDBProps {
     roomId: string;
@@ -43,18 +46,19 @@ function getInitials(name: string): string {
 
 export default function ChatMessagesRTDB({ roomId, onReply }: ChatMessagesRTDBProps) {
     const { messages, loading } = useRTDBMessages(roomId);
-    const { markAsRead } = useMessageActions(roomId);
+    const { markAsRead, markAsDelivered } = useMessageActions(roomId);
     const { typingUsers } = useTypingIndicator(roomId);
     const { user } = useAuth();
     const scrollRef = useRef<HTMLDivElement>(null);
     const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
 
-    // Mark as read when viewing
+    // Mark as read/delivered when viewing
     useEffect(() => {
         if (roomId && messages.length > 0) {
+            markAsDelivered();
             markAsRead();
         }
-    }, [roomId, messages.length, markAsRead]);
+    }, [roomId, messages.length, markAsRead, markAsDelivered]);
 
     // Safe message text parser
     const renderMessageText = (text: any): string => {
@@ -151,8 +155,8 @@ export default function ChatMessagesRTDB({ roomId, onReply }: ChatMessagesRTDBPr
     }
 
     return (
-        <ScrollArea className="flex-1 bg-chat-background" ref={scrollRef}>
-            <div className="p-4 space-y-2">
+        <ScrollArea className="flex-1 bg-chat-background bg-chat-pattern relative" ref={scrollRef}>
+            <div className="p-4 space-y-1 relative z-10">
                 {messages.map((message, index) => {
                     const isOwn = message.senderId === user?.uid;
                     const isFirstInBlock =
@@ -194,6 +198,7 @@ export default function ChatMessagesRTDB({ roomId, onReply }: ChatMessagesRTDBPr
     );
 }
 
+
 function MessageBubble({
     message,
     isOwn,
@@ -226,9 +231,7 @@ function MessageBubble({
     };
 
     const handleReaction = (emoji: string) => {
-        // Toggle reaction
         const hasReacted = message.reactions?.[emoji]?.[user?.uid || ""];
-
         if (hasReacted) {
             removeReaction(message.id, emoji);
         } else {
@@ -237,23 +240,35 @@ function MessageBubble({
     };
 
     const handlers = useSwipeable({
-        onSwipedLeft: () => {
-            if (window.innerWidth < 768) { // Only on mobile
-                handleReply();
-            }
+        onSwipedRight: () => {
+            handleReply();
         },
         trackMouse: false
     });
 
+    const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
     return (
         <ContextMenu>
             <ContextMenuTrigger>
-                <div {...handlers} className={cn("flex gap-1.5 items-end", isOwn ? "justify-end" : "justify-start", "group relative mb-1 touch-pan-y")}>
+                <MediaLightbox
+                    url={message.mediaURL || ""}
+                    isOpen={isLightboxOpen}
+                    onClose={() => setIsLightboxOpen(false)}
+                    fileName={message.mediaName}
+                />
+                <motion.div
+                    {...handlers}
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    className={cn("flex gap-0 items-end", isOwn ? "justify-end" : "justify-start", "group relative mb-[2px] touch-pan-y")}
+                >
                     {!isOwn && (
-                        <div className="w-6 shrink-0">
+                        <div className="w-8 shrink-0 flex justify-center pb-1">
                             {showAvatar && (
-                                <Avatar className="h-6 w-6">
-                                    <AvatarFallback className="text-xs bg-muted">
+                                <Avatar className="h-7 w-7">
+                                    <AvatarFallback className="text-[10px] bg-muted">
                                         {getInitials(message.senderName)}
                                     </AvatarFallback>
                                 </Avatar>
@@ -263,29 +278,28 @@ function MessageBubble({
 
                     <div
                         className={cn(
-                            "max-w-[75%] sm:max-w-[70%] px-3 py-2 rounded-xl shadow-sm relative",
+                            "max-w-[85%] sm:max-w-[75%] px-2.5 py-1.5 rounded-lg relative shadow-[0_1px_0.5px_rgba(0,0,0,0.13)]",
                             isOwn
-                                ? "bg-chat-bubble-sent text-white rounded-br-none"
-                                : "bg-chat-bubble-received rounded-bl-none",
+                                ? "bg-chat-bubble-sent text-foreground rounded-tr-none min-w-[60px]"
+                                : "bg-chat-bubble-received text-foreground rounded-tl-none min-w-[60px]",
                             showTail && (isOwn ? "bubble-tail-sent" : "bubble-tail-received")
                         )}
                     >
                         {!isOwn && showAvatar && (
-                            <p className="text-xs font-medium text-primary mb-1">{message.senderName}</p>
+                            <p className="text-[13px] font-semibold text-primary mb-0.5 leading-tight">{message.senderName}</p>
                         )}
 
                         {/* Reply Preview */}
                         {message.replyTo && (
                             <div
                                 className={cn(
-                                    "text-xs mb-2 border-l-2 pl-2 py-1 rounded",
-                                    isOwn ? "bg-white/10 border-white/50" : "bg-muted border-primary"
+                                    "text-[13px] mb-1.5 border-l-[3px] pl-2 py-1 rounded-sm bg-black/5 border-primary/50"
                                 )}
                             >
-                                <p className={cn("font-medium", isOwn ? "text-white/80" : "text-primary")}>
+                                <p className="font-semibold text-primary/80 text-xs">
                                     {message.replyTo.senderName}
                                 </p>
-                                <p className={cn("truncate", isOwn ? "text-white/60" : "text-muted-foreground")}>
+                                <p className="truncate text-muted-foreground italic">
                                     {message.replyTo.text}
                                 </p>
                             </div>
@@ -293,21 +307,23 @@ function MessageBubble({
 
                         {/* Media Content */}
                         {message.type === "image" && message.mediaURL && (
-                            <a href={message.mediaURL} target="_blank" rel="noopener noreferrer">
-                                <img
-                                    src={message.mediaURL}
-                                    alt="Image"
-                                    className="max-w-full max-h-64 rounded-lg object-cover mb-2 cursor-pointer hover:opacity-90"
-                                />
-                            </a>
+                            <div className="relative mb-1 mt-0.5">
+                                <div onClick={() => setIsLightboxOpen(true)}>
+                                    <img
+                                        src={message.mediaURL}
+                                        alt="Image"
+                                        className="max-w-full max-h-80 rounded-sm object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                                    />
+                                </div>
+                            </div>
                         )}
 
                         {message.type === "video" && message.mediaURL && (
-                            <video src={message.mediaURL} controls className="max-w-full max-h-64 rounded-lg mb-2" />
+                            <video src={message.mediaURL} controls className="max-w-full max-h-80 rounded-sm mb-1 mt-0.5" />
                         )}
 
                         {message.type === "audio" && message.mediaURL && (
-                            <audio src={message.mediaURL} controls className="w-full mb-2" />
+                            <AudioMessage url={message.mediaURL} isOwn={isOwn} />
                         )}
 
                         {message.type === "document" && message.mediaURL && (
@@ -316,29 +332,28 @@ function MessageBubble({
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className={cn(
-                                    "flex items-center gap-3 p-3 rounded-lg mb-2",
-                                    isOwn ? "bg-white/10" : "bg-muted"
+                                    "flex items-center gap-3 p-2 rounded-md mb-1 mt-0.5 bg-black/5"
                                 )}
                             >
-                                <FileIcon className={cn("h-8 w-8", isOwn ? "text-white" : "text-primary")} />
+                                <FileIcon className="h-6 w-6 text-primary" />
                                 <div className="flex-1 min-w-0">
-                                    <p className={cn("text-sm font-medium truncate", isOwn && "text-white")}>
+                                    <p className="text-[13px] font-medium truncate">
                                         {message.mediaName}
                                     </p>
-                                    <p className={cn("text-xs", isOwn ? "text-white/70" : "text-muted-foreground")}>
+                                    <p className="text-[11px] text-muted-foreground uppercase">
                                         {formatFileSize(message.mediaSize || 0)}
                                     </p>
                                 </div>
-                                <Download className={cn("h-4 w-4", isOwn ? "text-white/70" : "text-muted-foreground")} />
+                                <Download className="h-4 w-4 text-muted-foreground" />
                             </a>
                         )}
 
                         {/* Text Content */}
                         {message.text && (
-                            <div className="break-words whitespace-pre-wrap text-sm">
+                            <div className="break-words whitespace-pre-wrap text-[14.5px] leading-snug pr-12 pb-1">
                                 {message.text.split(/(https?:\/\/[^\s]+)/g).map((part, i) => (
                                     part.match(/https?:\/\/[^\s]+/) ? (
-                                        <a href={part} key={i} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-200 break-all">
+                                        <a href={part} key={i} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
                                             {part}
                                         </a>
                                     ) : (
@@ -348,49 +363,49 @@ function MessageBubble({
                             </div>
                         )}
 
-                        {/* Link Preview (only for the first link found) */}
+                        {/* Link Preview */}
                         {message.text && (() => {
                             const match = message.text.match(/(https?:\/\/[^\s]+)/);
                             if (match) {
-                                return <LinkPreview url={match[0]} />;
+                                return <div className="mb-1"><LinkPreview url={match[0]} /></div>;
                             }
                             return null;
                         })()}
 
                         {/* Reactions Display */}
                         {message.reactions && Object.keys(message.reactions).length > 0 && (
-                            <div className="flex gap-1 mt-1 flex-wrap">
+                            <div className="flex gap-1 mt-1 flex-wrap mb-1">
                                 {Object.entries(message.reactions).map(([emoji, users]) => (
-                                    <span key={emoji} className="bg-background/80 rounded-full px-1.5 py-0.5 text-xs border shadow-sm">
+                                    <span key={emoji} className="bg-white/80 rounded-full px-1 py-0.5 text-[10px] border shadow-xs animate-in zoom-in-50 duration-200">
                                         {emoji} {Object.keys(users).length > 1 && Object.keys(users).length}
                                     </span>
                                 ))}
                             </div>
                         )}
 
-                        {/* Footer */}
+                        {/* Footer - Positioned in corner */}
                         <div
                             className={cn(
-                                "flex items-center gap-1 mt-1 justify-end text-xs",
-                                isOwn ? "text-white/70" : "text-muted-foreground"
+                                "absolute bottom-1 right-1.5 flex items-center gap-1 text-[10px]",
+                                isOwn ? "text-muted-foreground/80" : "text-muted-foreground/80"
                             )}
                         >
-                            {isStarred && <Star className="h-3 w-3 fill-current" />}
-                            <span>{formatTime(message.timestamp)}</span>
+                            {isStarred && <Star className="h-2.5 w-2.5 fill-current" />}
+                            <span className="font-normal">{formatTime(message.timestamp)}</span>
                             {isOwn && (
-                                <>
+                                <div className="ml-0.5">
                                     {message.status === "read" ? (
-                                        <CheckCheck className="h-4 w-4 text-blue-400" />
+                                        <CheckCheck className="h-3.5 w-3.5 text-blue-400" />
                                     ) : message.status === "delivered" ? (
-                                        <CheckCheck className="h-4 w-4" />
+                                        <CheckCheck className="h-3.5 w-3.5" />
                                     ) : (
-                                        <Check className="h-4 w-4" />
+                                        <Check className="h-3.5 w-3.5" />
                                     )}
-                                </>
+                                </div>
                             )}
                         </div>
                     </div>
-                </div>
+                </motion.div>
             </ContextMenuTrigger>
             <ContextMenuContent>
                 <ContextMenuItem onClick={handleReply}>
@@ -412,7 +427,7 @@ function MessageBubble({
                 {isOwn && (
                     <ContextMenuItem
                         onClick={() => deleteMessage(message.id, true)}
-                        className="text-destructive"
+                        className="text-destructive focus:text-destructive"
                     >
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete for Everyone
@@ -420,7 +435,7 @@ function MessageBubble({
                 )}
                 <ContextMenuItem
                     onClick={() => deleteMessage(message.id, false)}
-                    className="text-destructive"
+                    className="text-destructive focus:text-destructive"
                 >
                     <Trash2 className="mr-2 h-4 w-4" />
                     Delete for Me
