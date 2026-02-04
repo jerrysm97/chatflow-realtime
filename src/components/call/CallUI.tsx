@@ -55,6 +55,7 @@ export default function CallUI({ onClose }: CallUIProps) {
         }
     }, [state.remoteStream]);
 
+
     if (state.status === "idle") {
         return null;
     }
@@ -63,23 +64,23 @@ export default function CallUI({ onClose }: CallUIProps) {
     const otherUserName = state.callData?.callerName || state.callData?.receiverName || "Unknown";
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/95 flex flex-col h-[100dvh] overflow-hidden">
+        <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-xl flex flex-col h-[100dvh] overflow-hidden">
             {/* Connection Status Indicators */}
             {state.connectionState === "checking" && (
-                <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-yellow-500/90 text-white px-4 py-2 rounded-full text-sm z-50">
+                <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-yellow-500/90 text-white px-4 py-2 rounded-full text-sm z-50 animate-in fade-in zoom-in">
                     Connecting...
                 </div>
             )}
 
             {state.connectionState === "failed" && (
-                <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-red-500/90 text-white px-4 py-2 rounded-full text-sm z-50">
+                <div className="absolute top-16 left-1/2 -translate-x-1/2 bg-destructive/90 text-destructive-foreground px-4 py-2 rounded-full text-sm z-50 animate-in fade-in zoom-in">
                     Connection failed - Check your network
                 </div>
             )}
 
             {/* Video Streams */}
             {isVideoCall && state.status === "connected" ? (
-                <div className="flex-1 relative min-h-0">
+                <div className="flex-1 relative min-h-0 bg-black">
                     {/* Remote Video (Full Screen) */}
                     <video
                         ref={remoteVideoRef}
@@ -89,7 +90,7 @@ export default function CallUI({ onClose }: CallUIProps) {
                     />
 
                     {/* Local Video (PiP) */}
-                    <div className="absolute top-4 right-4 w-32 h-48 md:w-40 md:h-56 rounded-lg overflow-hidden shadow-lg border-2 border-white/20">
+                    <div className="absolute top-4 right-4 w-32 h-48 md:w-40 md:h-56 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 transition-all hover:scale-105">
                         <video
                             ref={localVideoRef}
                             autoPlay
@@ -101,67 +102,73 @@ export default function CallUI({ onClose }: CallUIProps) {
                             )}
                         />
                         {state.isVideoOff && (
-                            <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                                <VideoOff className="w-8 h-8 text-gray-500" />
+                            <div className="w-full h-full bg-muted flex items-center justify-center">
+                                <VideoOff className="w-8 h-8 text-muted-foreground" />
                             </div>
                         )}
                     </div>
                 </div>
             ) : (
                 // Audio call or waiting state
-                <div className="flex-1 flex flex-col items-center justify-center">
-                    <Avatar className="w-32 h-32 mb-6">
-                        <AvatarImage src={state.callData?.callerPhoto} />
-                        <AvatarFallback className="text-4xl bg-primary text-primary-foreground">
-                            {getInitials(otherUserName)}
-                        </AvatarFallback>
-                    </Avatar>
+                <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-300">
+                    <div className="relative mb-8">
+                        <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full" />
+                        <Avatar className="w-32 h-32 md:w-40 md:h-40 border-4 border-background shadow-2xl relative z-10">
+                            <AvatarImage src={state.callData?.callerPhoto} />
+                            <AvatarFallback className="text-4xl bg-primary text-primary-foreground">
+                                {getInitials(otherUserName)}
+                            </AvatarFallback>
+                        </Avatar>
+                    </div>
 
-                    <h2 className="text-2xl font-semibold text-white mb-2">{otherUserName}</h2>
+                    <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">{otherUserName}</h2>
 
-                    <p className="text-lg text-gray-400">
+                    <p className="text-xl text-muted-foreground font-medium">
                         {state.status === "calling" && "Calling..."}
                         {state.status === "ringing" && "Incoming call..."}
                         {state.status === "connected" && formatCallDuration(state.callDuration)}
                     </p>
 
                     {state.status === "ringing" && (
-                        <div className="flex items-center gap-2 mt-2">
-                            {/* isVideoCall logic is tricky here because callData might be partial. 
-                                It's safer to rely on callData.type 
-                            */}
+                        <div className="flex items-center gap-2 mt-4 px-4 py-2 bg-muted/50 rounded-full">
                             {state.callData?.type === "video" ? (
-                                <Video className="w-5 h-5 text-gray-400" />
+                                <Video className="w-5 h-5 text-primary" />
                             ) : (
-                                <Phone className="w-5 h-5 text-gray-400" />
+                                <Phone className="w-5 h-5 text-primary" />
                             )}
-                            <span className="text-gray-400">{state.callData?.type === "video" ? "Video Call" : "Voice Call"}</span>
+                            <span className="text-sm font-medium">{state.callData?.type === "video" ? "Video Call" : "Voice Call"}</span>
                         </div>
                     )}
                 </div>
             )}
 
             {/* Controls */}
-            <div className="p-4 pb-8 md:p-8 bg-gradient-to-t from-black/80 to-transparent">
-                <div className="flex items-center justify-center gap-6">
+            <div className="p-6 md:p-8 bg-gradient-to-t from-background/90 via-background/50 to-transparent backdrop-blur-sm">
+                <div className="flex items-center justify-center gap-8 max-w-md mx-auto">
                     {/* Incoming Call Controls */}
                     {state.status === "ringing" && (
                         <>
-                            <Button
-                                size="lg"
-                                variant="destructive"
-                                className="w-16 h-16 rounded-full"
-                                onClick={rejectCall}
-                            >
-                                <PhoneOff className="w-7 h-7" />
-                            </Button>
-                            <Button
-                                size="lg"
-                                className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-600"
-                                onClick={answerCall}
-                            >
-                                <PhoneIncoming className="w-7 h-7" />
-                            </Button>
+                            <div className="flex flex-col items-center gap-2">
+                                <Button
+                                    size="lg"
+                                    variant="destructive"
+                                    className="w-16 h-16 rounded-full shadow-lg hover:scale-110 transition-transform"
+                                    onClick={rejectCall}
+                                >
+                                    <PhoneOff className="w-8 h-8" />
+                                </Button>
+                                <span className="text-xs font-medium text-muted-foreground">Decline</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-2">
+                                <Button
+                                    size="lg"
+                                    className="w-16 h-16 rounded-full bg-green-500 hover:bg-green-600 shadow-lg hover:scale-110 transition-transform animate-pulse"
+                                    onClick={answerCall}
+                                >
+                                    <PhoneIncoming className="w-8 h-8" />
+                                </Button>
+                                <span className="text-xs font-medium text-muted-foreground">Accept</span>
+                            </div>
                         </>
                     )}
 
@@ -171,7 +178,7 @@ export default function CallUI({ onClose }: CallUIProps) {
                             <Button
                                 size="lg"
                                 variant={state.isMuted ? "destructive" : "secondary"}
-                                className="w-14 h-14 rounded-full"
+                                className="w-14 h-14 rounded-full shadow-md"
                                 onClick={toggleMute}
                             >
                                 {state.isMuted ? <MicOff className="w-6 h-6" /> : <Mic className="w-6 h-6" />}
@@ -182,7 +189,7 @@ export default function CallUI({ onClose }: CallUIProps) {
                                     <Button
                                         size="lg"
                                         variant={state.isVideoOff ? "destructive" : "secondary"}
-                                        className="w-14 h-14 rounded-full"
+                                        className="w-14 h-14 rounded-full shadow-md"
                                         onClick={toggleVideo}
                                     >
                                         {state.isVideoOff ? (
@@ -196,7 +203,7 @@ export default function CallUI({ onClose }: CallUIProps) {
                                         variant="secondary"
                                         size="icon"
                                         onClick={() => switchCamera()}
-                                        className="w-14 h-14 rounded-full bg-white/20 hover:bg-white/30 text-white"
+                                        className="w-14 h-14 rounded-full shadow-md"
                                         title="Switch Camera"
                                     >
                                         <RotateCcw className="h-6 w-6" />
@@ -207,10 +214,10 @@ export default function CallUI({ onClose }: CallUIProps) {
                             <Button
                                 size="lg"
                                 variant="destructive"
-                                className="w-16 h-16 rounded-full"
+                                className="w-16 h-16 rounded-full shadow-lg hover:scale-105 transition-transform"
                                 onClick={endCall}
                             >
-                                <PhoneOff className="w-7 h-7" />
+                                <PhoneOff className="w-8 h-8" />
                             </Button>
                         </>
                     )}

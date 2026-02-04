@@ -248,11 +248,11 @@ function MessageBubble({
     return (
         <ContextMenu>
             <ContextMenuTrigger>
-                <div {...handlers} className={cn("flex gap-2 items-end", isOwn ? "justify-end" : "justify-start", "group relative mb-1 touch-pan-y")}>
+                <div {...handlers} className={cn("flex gap-1.5 items-end", isOwn ? "justify-end" : "justify-start", "group relative mb-1 touch-pan-y")}>
                     {!isOwn && (
-                        <div className="w-8 shrink-0">
+                        <div className="w-6 shrink-0">
                             {showAvatar && (
-                                <Avatar className="h-8 w-8">
+                                <Avatar className="h-6 w-6">
                                     <AvatarFallback className="text-xs bg-muted">
                                         {getInitials(message.senderName)}
                                     </AvatarFallback>
@@ -263,7 +263,7 @@ function MessageBubble({
 
                     <div
                         className={cn(
-                            "max-w-[85%] sm:max-w-[70%] px-3 py-2 rounded-xl shadow-sm relative",
+                            "max-w-[75%] sm:max-w-[70%] px-3 py-2 rounded-xl shadow-sm relative",
                             isOwn
                                 ? "bg-chat-bubble-sent text-white rounded-br-none"
                                 : "bg-chat-bubble-received rounded-bl-none",
@@ -335,10 +335,10 @@ function MessageBubble({
 
                         {/* Text Content */}
                         {message.text && (
-                            <div className="break-words">
+                            <div className="break-words whitespace-pre-wrap text-sm">
                                 {message.text.split(/(https?:\/\/[^\s]+)/g).map((part, i) => (
                                     part.match(/https?:\/\/[^\s]+/) ? (
-                                        <a href={part} key={i} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-200">
+                                        <a href={part} key={i} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-200 break-all">
                                             {part}
                                         </a>
                                     ) : (

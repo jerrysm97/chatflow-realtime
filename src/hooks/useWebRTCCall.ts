@@ -20,15 +20,7 @@ export interface CallData {
     endedAt?: number;
 }
 
-export interface CallState {
-    status: CallStatus;
-    callData: CallData | null;
-    localStream: MediaStream | null;
-    remoteStream: MediaStream | null;
-    isMuted: boolean;
-    isVideoOff: boolean;
-    callDuration: number;
-}
+
 
 const ICE_SERVERS = {
     iceServers: [

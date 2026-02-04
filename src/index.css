@@ -15,17 +15,20 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 13%;
 
-    /* WhatsApp green */
-    --primary: 142 70% 45%;
+    /* IIMS College Red Theme */
+    /* Primary Red: #C3161C -> HSL(358, 75%, 43%) */
+    /* Secondary Yellow: #FFCD39 -> HSL(45, 100%, 61%) */
+
+    --primary: 358 75% 43%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 120 5% 96%;
+    --secondary: 45 100% 61%;
     --secondary-foreground: 0 0% 13%;
 
-    --muted: 120 5% 96%;
+    --muted: 0 0% 96%;
     --muted-foreground: 0 0% 45%;
 
-    --accent: 142 70% 45%;
+    --accent: 358 75% 43%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
@@ -33,76 +36,77 @@
 
     --border: 0 0% 90%;
     --input: 0 0% 90%;
-    --ring: 142 70% 45%;
+    --ring: 358 75% 43%;
 
     --radius: 0.5rem;
 
     /* Chat-specific colors */
-    --chat-header: 0 0% 97%;
-    --chat-input: 0 0% 97%;
-    --chat-background: 210 20% 98%;
-    --chat-bubble-sent: 142 70% 45%;
+    --chat-header: 0 0% 100%;
+    --chat-input: 0 0% 100%;
+    --chat-background: 0 0% 96%;
+    /* Slightly warmer/neutral gray */
+    --chat-bubble-sent: 358 75% 43%;
     --chat-bubble-received: 0 0% 100%;
-    --chat-avatar: 142 50% 35%;
-    --chat-pattern: 142 30% 95%;
+    --chat-avatar: 358 75% 43%;
+    --chat-pattern: 358 30% 95%;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 0 0% 13%;
-    --sidebar-primary: 142 70% 45%;
+    --sidebar-primary: 358 75% 43%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 120 5% 96%;
+    --sidebar-accent: 0 0% 96%;
     --sidebar-accent-foreground: 0 0% 13%;
     --sidebar-border: 0 0% 90%;
-    --sidebar-ring: 142 70% 45%;
+    --sidebar-ring: 358 75% 43%;
   }
 
   .dark {
-    --background: 222 15% 10%;
-    --foreground: 0 0% 95%;
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
 
-    --card: 222 15% 12%;
-    --card-foreground: 0 0% 95%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 222 15% 12%;
-    --popover-foreground: 0 0% 95%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
 
-    /* WhatsApp dark green */
-    --primary: 142 60% 40%;
+    /* IIMS Red Dark Mode */
+    --primary: 358 70% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 222 15% 18%;
-    --secondary-foreground: 0 0% 95%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 222 15% 18%;
-    --muted-foreground: 0 0% 60%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
 
-    --accent: 142 60% 40%;
+    --accent: 358 70% 50%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62% 30%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 222 15% 20%;
-    --input: 222 15% 20%;
-    --ring: 142 60% 40%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 358 70% 50%;
 
     /* Chat-specific dark colors */
-    --chat-header: 222 15% 15%;
-    --chat-input: 222 15% 15%;
-    --chat-background: 222 15% 8%;
-    --chat-bubble-sent: 142 60% 35%;
-    --chat-bubble-received: 222 15% 20%;
-    --chat-avatar: 142 50% 30%;
-    --chat-pattern: 222 15% 12%;
+    --chat-header: 240 10% 5%;
+    --chat-input: 240 10% 5%;
+    --chat-background: 240 10% 2%;
+    --chat-bubble-sent: 358 60% 40%;
+    --chat-bubble-received: 240 10% 10%;
+    --chat-avatar: 358 60% 40%;
+    --chat-pattern: 240 10% 4%;
 
-    --sidebar-background: 222 15% 10%;
-    --sidebar-foreground: 0 0% 95%;
-    --sidebar-primary: 142 60% 40%;
+    --sidebar-background: 240 10% 3.9%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 358 70% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 15% 18%;
-    --sidebar-accent-foreground: 0 0% 95%;
-    --sidebar-border: 222 15% 20%;
-    --sidebar-ring: 142 60% 40%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 358 70% 50%;
   }
 }
 
@@ -143,7 +147,8 @@
 
   .bg-chat-pattern {
     background-color: hsl(var(--chat-pattern));
-    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2325d366' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    /* Updated SVG fill color to match red theme roughly or keep neutral */
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23C3161C' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
   }
 
   @supports (padding-bottom: env(safe-area-inset-bottom)) {

@@ -114,7 +114,7 @@ export default function ChatLayoutRTDB({ initialChatId }: ChatLayoutRTDBProps) {
                     <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mb-4">
                         <MessageCircle className="w-10 h-10 text-muted-foreground" />
                     </div>
-                    <h2 className="text-xl font-medium mb-2 text-foreground">Titan Messenger</h2>
+                    <h2 className="text-xl font-medium mb-2 text-foreground">IIMS Titan</h2>
                     <p className="text-muted-foreground text-center max-w-md">
                         Select a chat to start messaging
                     </p>
@@ -139,7 +139,7 @@ export default function ChatLayoutRTDB({ initialChatId }: ChatLayoutRTDBProps) {
                                 onCallStart={handleCallStart}
                                 onBack={handleBackToList}
                             />
-                            <div className="flex-1 overflow-hidden relative bg-chat-background bg-chat-pattern">
+                            <div className="flex-1 flex flex-col overflow-hidden relative bg-chat-background bg-chat-pattern">
                                 <ChatMessagesRTDB roomId={selectedChatId!} onReply={setReplyTo} />
                             </div>
                             <ChatInputRTDB

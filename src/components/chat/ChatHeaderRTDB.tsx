@@ -147,7 +147,7 @@ export default function ChatHeaderRTDB({
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="rounded-full hidden sm:flex"
+                    className="rounded-full"
                     onClick={() => onCallStart?.("video")}
                 >
                     <Video className="h-5 w-5" />
@@ -155,7 +155,7 @@ export default function ChatHeaderRTDB({
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="rounded-full hidden sm:flex"
+                    className="rounded-full"
                     onClick={() => onCallStart?.("audio")}
                 >
                     <Phone className="h-5 w-5" />
